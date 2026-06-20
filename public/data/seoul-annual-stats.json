@@ -1,0 +1,470 @@
+[
+  {
+    "year": 1973,
+    "heatDays": 3,
+    "coldDays": 6,
+    "precDays": 104,
+    "maxTemp": 34.8,
+    "minTemp": -19,
+    "count": 365
+  },
+  {
+    "year": 1974,
+    "heatDays": 0,
+    "coldDays": 11,
+    "precDays": 113,
+    "maxTemp": 32.8,
+    "minTemp": -17,
+    "count": 365
+  },
+  {
+    "year": 1975,
+    "heatDays": 0,
+    "coldDays": 3,
+    "precDays": 112,
+    "maxTemp": 32.5,
+    "minTemp": -11.7,
+    "count": 365
+  },
+  {
+    "year": 1976,
+    "heatDays": 0,
+    "coldDays": 14,
+    "precDays": 119,
+    "maxTemp": 31.5,
+    "minTemp": -17.8,
+    "count": 366
+  },
+  {
+    "year": 1977,
+    "heatDays": 1,
+    "coldDays": 28,
+    "precDays": 76,
+    "maxTemp": 33.2,
+    "minTemp": -17,
+    "count": 365
+  },
+  {
+    "year": 1978,
+    "heatDays": 4,
+    "coldDays": 13,
+    "precDays": 106,
+    "maxTemp": 34.6,
+    "minTemp": -16.9,
+    "count": 365
+  },
+  {
+    "year": 1979,
+    "heatDays": 0,
+    "coldDays": 9,
+    "precDays": 105,
+    "maxTemp": 31.2,
+    "minTemp": -21.6,
+    "count": 365
+  },
+  {
+    "year": 1980,
+    "heatDays": 0,
+    "coldDays": 29,
+    "precDays": 91,
+    "maxTemp": 29.7,
+    "minTemp": -19.3,
+    "count": 366
+  },
+  {
+    "year": 1981,
+    "heatDays": 1,
+    "coldDays": 39,
+    "precDays": 95,
+    "maxTemp": 34.7,
+    "minTemp": -23,
+    "count": 365
+  },
+  {
+    "year": 1982,
+    "heatDays": 1,
+    "coldDays": 13,
+    "precDays": 88,
+    "maxTemp": 33.2,
+    "minTemp": -14.6,
+    "count": 365
+  },
+  {
+    "year": 1983,
+    "heatDays": 0,
+    "coldDays": 22,
+    "precDays": 102,
+    "maxTemp": 32,
+    "minTemp": -13.8,
+    "count": 365
+  },
+  {
+    "year": 1984,
+    "heatDays": 0,
+    "coldDays": 45,
+    "precDays": 107,
+    "maxTemp": 32.9,
+    "minTemp": -23.6,
+    "count": 366
+  },
+  {
+    "year": 1985,
+    "heatDays": 0,
+    "coldDays": 35,
+    "precDays": 117,
+    "maxTemp": 32.4,
+    "minTemp": -22.9,
+    "count": 365
+  },
+  {
+    "year": 1986,
+    "heatDays": 0,
+    "coldDays": 38,
+    "precDays": 107,
+    "maxTemp": 30.6,
+    "minTemp": -24.9,
+    "count": 365
+  },
+  {
+    "year": 1987,
+    "heatDays": 0,
+    "coldDays": 13,
+    "precDays": 100,
+    "maxTemp": 30.7,
+    "minTemp": -20.1,
+    "count": 365
+  },
+  {
+    "year": 1988,
+    "heatDays": 5,
+    "coldDays": 8,
+    "precDays": 87,
+    "maxTemp": 35,
+    "minTemp": -12.7,
+    "count": 366
+  },
+  {
+    "year": 1989,
+    "heatDays": 1,
+    "coldDays": 4,
+    "precDays": 108,
+    "maxTemp": 33.6,
+    "minTemp": -11.9,
+    "count": 365
+  },
+  {
+    "year": 1990,
+    "heatDays": 1,
+    "coldDays": 16,
+    "precDays": 132,
+    "maxTemp": 33.1,
+    "minTemp": -18.8,
+    "count": 365
+  },
+  {
+    "year": 1991,
+    "heatDays": 0,
+    "coldDays": 19,
+    "precDays": 89,
+    "maxTemp": 32.5,
+    "minTemp": -19.9,
+    "count": 365
+  },
+  {
+    "year": 1992,
+    "heatDays": 0,
+    "coldDays": 2,
+    "precDays": 104,
+    "maxTemp": 31.4,
+    "minTemp": -12.9,
+    "count": 366
+  },
+  {
+    "year": 1993,
+    "heatDays": 0,
+    "coldDays": 3,
+    "precDays": 97,
+    "maxTemp": 29.4,
+    "minTemp": -11.2,
+    "count": 365
+  },
+  {
+    "year": 1994,
+    "heatDays": 16,
+    "coldDays": 10,
+    "precDays": 87,
+    "maxTemp": 35.3,
+    "minTemp": -13.8,
+    "count": 365
+  },
+  {
+    "year": 1995,
+    "heatDays": 0,
+    "coldDays": 4,
+    "precDays": 95,
+    "maxTemp": 32.2,
+    "minTemp": -11.9,
+    "count": 365
+  },
+  {
+    "year": 1996,
+    "heatDays": 1,
+    "coldDays": 11,
+    "precDays": 98,
+    "maxTemp": 33.1,
+    "minTemp": -14.6,
+    "count": 366
+  },
+  {
+    "year": 1997,
+    "heatDays": 1,
+    "coldDays": 5,
+    "precDays": 87,
+    "maxTemp": 33.3,
+    "minTemp": -13.6,
+    "count": 365
+  },
+  {
+    "year": 1998,
+    "heatDays": 0,
+    "coldDays": 6,
+    "precDays": 108,
+    "maxTemp": 30.7,
+    "minTemp": -15.2,
+    "count": 365
+  },
+  {
+    "year": 1999,
+    "heatDays": 0,
+    "coldDays": 5,
+    "precDays": 100,
+    "maxTemp": 32.6,
+    "minTemp": -11.7,
+    "count": 365
+  },
+  {
+    "year": 2000,
+    "heatDays": 1,
+    "coldDays": 9,
+    "precDays": 97,
+    "maxTemp": 33.2,
+    "minTemp": -12.6,
+    "count": 366
+  },
+  {
+    "year": 2001,
+    "heatDays": 0,
+    "coldDays": 30,
+    "precDays": 87,
+    "maxTemp": 32.6,
+    "minTemp": -24.3,
+    "count": 365
+  },
+  {
+    "year": 2002,
+    "heatDays": 2,
+    "coldDays": 6,
+    "precDays": 98,
+    "maxTemp": 33.4,
+    "minTemp": -13.9,
+    "count": 365
+  },
+  {
+    "year": 2003,
+    "heatDays": 0,
+    "coldDays": 7,
+    "precDays": 108,
+    "maxTemp": 31.4,
+    "minTemp": -18.4,
+    "count": 365
+  },
+  {
+    "year": 2004,
+    "heatDays": 4,
+    "coldDays": 9,
+    "precDays": 97,
+    "maxTemp": 34.1,
+    "minTemp": -23.3,
+    "count": 366
+  },
+  {
+    "year": 2005,
+    "heatDays": 3,
+    "coldDays": 18,
+    "precDays": 99,
+    "maxTemp": 33.3,
+    "minTemp": -13.9,
+    "count": 365
+  },
+  {
+    "year": 2006,
+    "heatDays": 0,
+    "coldDays": 8,
+    "precDays": 94,
+    "maxTemp": 32.5,
+    "minTemp": -13.8,
+    "count": 365
+  },
+  {
+    "year": 2007,
+    "heatDays": 0,
+    "coldDays": 0,
+    "precDays": 114,
+    "maxTemp": 32.4,
+    "minTemp": -9.8,
+    "count": 365
+  },
+  {
+    "year": 2008,
+    "heatDays": 2,
+    "coldDays": 5,
+    "precDays": 91,
+    "maxTemp": 33.6,
+    "minTemp": -12.7,
+    "count": 366
+  },
+  {
+    "year": 2009,
+    "heatDays": 0,
+    "coldDays": 11,
+    "precDays": 71,
+    "maxTemp": 32.4,
+    "minTemp": -12.4,
+    "count": 365
+  },
+  {
+    "year": 2010,
+    "heatDays": 0,
+    "coldDays": 24,
+    "precDays": 105,
+    "maxTemp": 32.8,
+    "minTemp": -24.3,
+    "count": 365
+  },
+  {
+    "year": 2011,
+    "heatDays": 0,
+    "coldDays": 27,
+    "precDays": 102,
+    "maxTemp": 32.4,
+    "minTemp": -19,
+    "count": 365
+  },
+  {
+    "year": 2012,
+    "heatDays": 7,
+    "coldDays": 24,
+    "precDays": 94,
+    "maxTemp": 34.3,
+    "minTemp": -18.4,
+    "count": 366
+  },
+  {
+    "year": 2013,
+    "heatDays": 0,
+    "coldDays": 24,
+    "precDays": 106,
+    "maxTemp": 32.4,
+    "minTemp": -22.8,
+    "count": 365
+  },
+  {
+    "year": 2014,
+    "heatDays": 4,
+    "coldDays": 3,
+    "precDays": 82,
+    "maxTemp": 35.5,
+    "minTemp": -12.2,
+    "count": 365
+  },
+  {
+    "year": 2015,
+    "heatDays": 2,
+    "coldDays": 2,
+    "precDays": 93,
+    "maxTemp": 35.5,
+    "minTemp": -11.4,
+    "count": 365
+  },
+  {
+    "year": 2016,
+    "heatDays": 2,
+    "coldDays": 7,
+    "precDays": 76,
+    "maxTemp": 33.2,
+    "minTemp": -18,
+    "count": 366
+  },
+  {
+    "year": 2017,
+    "heatDays": 1,
+    "coldDays": 11,
+    "precDays": 93,
+    "maxTemp": 33,
+    "minTemp": -12.1,
+    "count": 365
+  },
+  {
+    "year": 2018,
+    "heatDays": 18,
+    "coldDays": 22,
+    "precDays": 85,
+    "maxTemp": 36.2,
+    "minTemp": -19.5,
+    "count": 365
+  },
+  {
+    "year": 2019,
+    "heatDays": 8,
+    "coldDays": 2,
+    "precDays": 87,
+    "maxTemp": 35.3,
+    "minTemp": -12.1,
+    "count": 365
+  },
+  {
+    "year": 2020,
+    "heatDays": 1,
+    "coldDays": 8,
+    "precDays": 106,
+    "maxTemp": 34.2,
+    "minTemp": -13.2,
+    "count": 366
+  },
+  {
+    "year": 2021,
+    "heatDays": 8,
+    "coldDays": 18,
+    "precDays": 116,
+    "maxTemp": 35,
+    "minTemp": -18.8,
+    "count": 365
+  },
+  {
+    "year": 2022,
+    "heatDays": 2,
+    "coldDays": 15,
+    "precDays": 105,
+    "maxTemp": 33.5,
+    "minTemp": -17.5,
+    "count": 365
+  },
+  {
+    "year": 2023,
+    "heatDays": 4,
+    "coldDays": 14,
+    "precDays": 111,
+    "maxTemp": 33.9,
+    "minTemp": -18.5,
+    "count": 365
+  },
+  {
+    "year": 2024,
+    "heatDays": 5,
+    "coldDays": 3,
+    "precDays": 113,
+    "maxTemp": 35.6,
+    "minTemp": -15,
+    "count": 366
+  }
+]
