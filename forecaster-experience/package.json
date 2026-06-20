@@ -1,0 +1,35 @@
+{
+  "name": "forecaster-experience",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "description": "예보관 의사결정 체험 — 기상·기후 AI 해커톤 2026",
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.1",
+    "@astrojs/preact": "^4.0.0",
+    "@astrojs/tailwind": "^5.1.2",
+    "@astrojs/vercel": "^7.8.2",
+    "@preact/signals": "^1.3.0",
+    "astro": "^4.16.0",
+    "preact": "^10.24.0",
+    "tailwindcss": "^3.4.14"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
