@@ -1,0 +1,34 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+// 랜딩 + 케이스 라이브러리. 케이스 카드는 §1.5 3케이스 난이도 곡선.
+// 데이터·컴포넌트는 이후 Day 일정에서 채운다(현재는 스캐폴드).
+const cases = [
+  { caseId: 'easy-highpressure', title: '안정적 고기압', difficulty: 'easy' },
+  { caseId: '20220808-seoul', title: '수도권 집중호우', difficulty: 'hard' },
+  { caseId: 'trap-echo', title: '맑음 예보 vs 레이더 에코', difficulty: 'trap' },
+];
+---
+
+<BaseLayout>
+  <main class="mx-auto max-w-5xl px-6 py-16">
+    <h1 class="text-4xl font-bold tracking-tight">예보관 의사결정 체험</h1>
+    <p class="mt-3 text-lg text-slate-600">
+      실제 기상청 데이터로 확률적 판단을 내리고 실황과 대조해 채점받는 단일 페이지 체험.
+    </p>
+
+    <section class="mt-12 grid gap-4 sm:grid-cols-3">
+      {
+        cases.map((c) => (
+          <a
+            href={`/case/${c.caseId}`}
+            class="block rounded-xl border border-slate-200 p-5 transition hover:border-slate-400"
+          >
+            <span class="text-xs font-mono uppercase text-slate-400">{c.difficulty}</span>
+            <h2 class="mt-1 text-lg font-semibold">{c.title}</h2>
+          </a>
+        ))
+      }
+    </section>
+  </main>
+</BaseLayout>
