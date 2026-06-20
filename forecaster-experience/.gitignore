@@ -1,0 +1,19 @@
+# build output
+dist/
+.vercel/
+.astro/
+
+# deps
+node_modules/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# raw API 응답 증빙은 빌드 제외(Build Spec §3) — 단, 수집본은 커밋 가능
+# (raw/ 자체는 증빙용으로 보존하되 빌드에 포함하지 않음)
+
+# misc
+.DS_Store
+*.log
