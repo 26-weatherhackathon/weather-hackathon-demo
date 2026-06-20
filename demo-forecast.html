@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>기상청이 틀렸을까? — 예보 불확실성 탐구</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --blue: #0066FF;
+      --blue-light: #E8F4FF;
+      --blue-dark: #0052CC;
+      --text: #191F28;
+      --sub: #6B7684;
+      --muted: #8B95A1;
+      --bg: #F9FAFB;
+      --white: #fff;
+      --border: #E5E8EB;
+    }
+
+    body {
+      font-family: 'Noto Sans KR', -apple-system, sans-serif;
+      background: var(--white);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(255,255,255,0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      height: 52px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar-title { font-size: 14px; font-weight: 700; color: var(--text); }
+    .topbar-back { font-size: 13px; color: var(--blue); text-decoration: none; }
+
+    .wrap { max-width: 440px; margin: 0 auto; padding: 0 20px 80px; }
+
+    /* === HERO === */
+    .hero {
+      background: linear-gradient(180deg, #E8F4FF 0%, #fff 100%);
+      padding: 48px 20px 36px;
+      text-align: center;
+      margin: 0 -20px;
+    }
+    .hero-badge {
+      display: inline-block;
+      background: var(--blue);
+      color: #fff;
+      padding: 5px 14px;
+      border-radius: 100px;
+      font-size: 12px; font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .hero h1 {
+      font-size: 28px; font-weight: 900; line-height: 1.3;
+      margin-bottom: 10px; color: var(--text);
+    }
+    .hero h1 em { color: var(--blue); font-style: normal; }
+    .hero p { font-size: 15px; color: var(--sub); line-height: 1.6; }
+
+    /* === SECTION === */
+    .section { padding: 36px 0; border-bottom: 1px solid var(--border); }
+    .section:last-child { border-bottom: none; }
+    .section-label {
+      font-size: 11px; font-weight: 700; color: var(--blue);
+      text-transform: uppercase; letter-spacing: 0.1em;
+      margin-bottom: 8px;
+    }
+    .section h2 { font-size: 22px; font-weight: 900; line-height: 1.3; margin-bottom: 8px; }
+    .section p { font-size: 15px; color: var(--sub); line-height: 1.7; }
+
+    /* === DATA CARD === */
+    .data-card {
+      background: var(--bg);
+      border-radius: 16px;
+      padding: 20px;
+      margin: 16px 0;
+    }
+    .data-card-title { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+    .data-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .data-row:last-child { border-bottom: none; }
+    .data-label { font-size: 14px; color: var(--sub); }
+    .data-value { font-size: 16px; font-weight: 700; }
+    .data-value.high { color: var(--blue); }
+    .data-value.mid { color: #F59E0B; }
+    .data-value.low { color: #10B981; }
+
+    /* === QUIZ === */
+    .quiz-box {
+      background: var(--white);
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      margin: 16px 0;
+    }
+    .quiz-q { font-size: 17px; font-weight: 700; margin-bottom: 20px; line-height: 1.4; }
+
+    .slider-wrap { margin: 8px 0 4px; }
+    .slider-labels {
+      display: flex; justify-content: space-between;
+      font-size: 11px; color: var(--muted); margin-bottom: 6px;
+    }
+    input[type=range] {
+      width: 100%; height: 6px; accent-color: var(--blue);
+      cursor: pointer;
+    }
+    .slider-value {
+      text-align: center;
+      font-size: 40px; font-weight: 900;
+      color: var(--blue); margin: 12px 0;
+    }
+    .slider-value span { font-size: 20px; font-weight: 400; color: var(--muted); }
+
+    /* === BUTTONS === */
+    .btn {
+      display: block; width: 100%;
+      padding: 16px;
+      background: var(--blue); color: #fff;
+      border: none; border-radius: 12px;
+      font-size: 16px; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      transition: background 0.15s, transform 0.1s;
+      text-align: center;
+    }
+    .btn:hover { background: var(--blue-dark); }
+    .btn:active { transform: scale(0.98); }
+    .btn.ghost {
+      background: transparent; color: var(--blue);
+      border: 2px solid var(--blue);
+    }
+    .btn.ghost:hover { background: var(--blue-light); }
+
+    /* === REVEAL === */
+    .reveal-box {
+      background: var(--blue);
+      border-radius: 20px;
+      padding: 28px 24px;
+      text-align: center;
+      color: #fff;
+      margin: 16px 0;
+    }
+    .reveal-label { font-size: 12px; opacity: 0.8; margin-bottom: 8px; }
+    .reveal-number { font-size: 64px; font-weight: 900; line-height: 1; }
+    .reveal-unit { font-size: 24px; font-weight: 400; opacity: 0.8; }
+    .reveal-desc { font-size: 14px; opacity: 0.9; margin-top: 8px; line-height: 1.6; }
+
+    .diff-box {
+      display: flex; gap: 10px; margin: 12px 0;
+    }
+    .diff-item {
+      flex: 1; text-align: center;
+      background: var(--bg); border-radius: 12px; padding: 14px 8px;
+    }
+    .diff-item .label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+    .diff-item .value { font-size: 22px; font-weight: 900; }
+    .diff-item .value.you { color: var(--sub); }
+    .diff-item .value.kma { color: var(--blue); }
+    .diff-item .value.diff-num { color: var(--text); }
+
+    /* === PROBABILITY VIZ === */
+    .prob-bars { margin: 16px 0; }
+    .prob-row {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 10px;
+    }
+    .prob-label { font-size: 13px; color: var(--sub); width: 52px; flex-shrink: 0; }
+    .prob-track {
+      flex: 1; height: 28px;
+      background: var(--bg); border-radius: 6px; overflow: hidden;
+      position: relative;
+    }
+    .prob-fill {
+      height: 100%; border-radius: 6px;
+      background: var(--blue);
+      transition: width 0.8s cubic-bezier(.4,0,.2,1);
+      display: flex; align-items: center; justify-content: flex-end;
+      padding-right: 8px;
+    }
+    .prob-fill.uncertain { background: #CBD5E1; }
+    .prob-fill-label { font-size: 12px; font-weight: 700; color: #fff; }
+    .prob-pct { font-size: 13px; font-weight: 700; width: 36px; flex-shrink: 0; text-align: right; }
+
+    /* === CHAOS CANVAS === */
+    .canvas-wrap {
+      background: #0A1628;
+      border-radius: 16px;
+      padding: 16px;
+      margin: 16px 0;
+    }
+    canvas { display: block; width: 100%; border-radius: 8px; }
+    .canvas-legend {
+      display: flex; gap: 16px; margin-top: 10px;
+      justify-content: center;
+    }
+    .legend-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; color: #94A3B8;
+    }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+    /* === COIN VIZ === */
+    .coin-grid {
+      display: grid; grid-template-columns: repeat(10, 1fr);
+      gap: 6px; margin: 16px 0;
+    }
+    .coin {
+      aspect-ratio: 1; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+    .coin.rain { background: var(--blue-light); }
+    .coin.sun { background: #FEF9C3; }
+
+    /* === FORECASTER QUIZ === */
+    .choice-list { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; }
+    .choice-card {
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 18px;
+      cursor: pointer;
+      font-size: 15px; font-weight: 600;
+      color: var(--text);
+      transition: all 0.15s;
+      text-align: left;
+    }
+    .choice-card:hover { border-color: var(--blue); background: var(--blue-light); }
+    .choice-card.correct { border-color: #10B981; background: #D1FAE5; color: #065F46; }
+    .choice-card.wrong { border-color: #EF4444; background: #FEE2E2; color: #991B1B; }
+    .choice-card.reveal { border-color: var(--blue); background: var(--blue-light); }
+
+    /* === CALLOUT === */
+    .callout {
+      border-left: 3px solid var(--blue);
+      background: var(--blue-light);
+      border-radius: 0 12px 12px 0;
+      padding: 14px 16px;
+      margin: 16px 0;
+      font-size: 14px; color: var(--text); line-height: 1.6;
+    }
+    .callout strong { color: var(--blue); }
+
+    /* === ATTRIBUTION === */
+    .attr {
+      font-size: 11px; color: var(--muted);
+      background: var(--bg); border-radius: 10px;
+      padding: 12px 14px; margin: 16px 0;
+      line-height: 1.6;
+    }
+
+    /* === STEP INDICATOR === */
+    .step-indicator {
+      display: flex; gap: 6px; justify-content: center;
+      margin: 24px 0 8px;
+    }
+    .step-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--border);
+      transition: background 0.3s, width 0.3s;
+    }
+    .step-dot.active { background: var(--blue); width: 20px; border-radius: 3px; }
+
+    /* === LOADING === */
+    .loading {
+      text-align: center; padding: 60px 20px;
+      color: var(--muted); font-size: 15px;
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hidden { display: none !important; }
+
+    /* === RESULT === */
+    .result-card {
+      background: var(--blue);
+      border-radius: 20px;
+      padding: 32px 24px;
+      text-align: center;
+      color: #fff;
+      margin: 16px 0;
+    }
+    .result-title { font-size: 20px; font-weight: 900; margin-bottom: 8px; }
+    .result-desc { font-size: 14px; opacity: 0.9; line-height: 1.7; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <a href="index.html" class="topbar-back">← 가이드로</a>
+  <div class="topbar-title">예보 불확실성 탐구</div>
+  <div></div>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">기상·기후 교육 인터랙티브</div>
+  <h1>기상청이 <em>틀린</em> 걸까요,<br>아니면 다른 이유가 있을까요?</h1>
+  <p>비 온다고 해서 우산 들고 나갔는데 맑았던 날,<br>실제로 무슨 일이 일어난 건지 알아봅시다.</p>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="wrap">
+
+  <!-- LOADING STATE -->
+  <div id="loadingState" class="section">
+    <div class="loading">
+      <div class="spinner"></div>
+      기상청에서 오늘 날씨 가져오는 중...
+    </div>
+  </div>
+
+  <!-- STEP 1: 퀴즈 -->
+  <div id="step1" class="hidden">
+    <div class="section">
+      <div class="step-indicator">
+        <div class="step-dot active" id="dot1"></div>
+        <div class="step-dot" id="dot2"></div>
+        <div class="step-dot" id="dot3"></div>
+        <div class="step-dot" id="dot4"></div>
+      </div>
+      <div class="section-label">Step 1 — 직접 예측해보기</div>
+      <h2>내일 비가 올 것 같나요?</h2>
+      <p>기상청 예보를 보기 전에, 먼저 당신의 직감을 수치로 표현해보세요.</p>
+
+      <div id="todayCard" class="data-card">
+        <div class="data-card-title">오늘 <span id="cityName">서울</span> 단기예보 (기상청 실데이터)</div>
+      </div>
+
+      <div class="quiz-box">
+        <div class="quiz-q">내일 <span id="cityName2">서울</span>에 비가 올 확률은<br>몇 %라고 생각하세요?</div>
+        <div class="slider-wrap">
+          <div class="slider-labels"><span>0%</span><span>50%</span><span>100%</span></div>
+          <input type="range" id="guessSlider" min="0" max="100" step="10" value="30">
+        </div>
+        <div class="slider-value"><span id="guessVal">30</span><span>%</span></div>
+        <button class="btn" onclick="submitGuess()">예측 제출하기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: 정답 공개 + 데이터 -->
+  <div id="step2" class="hidden">
+    <div class="section">
+      <div class="step-indicator">
+        <div class="step-dot" id="dot1b"></div>
+        <div class="step-dot active" id="dot2b"></div>
+        <div class="step-dot" id="dot3b"></div>
+        <div class="step-dot" id="dot4b"></div>
+      </div>
+      <div class="section-label">Step 2 — 정답 공개</div>
+      <h2>기상청의 답은?</h2>
+
+      <div class="reveal-box">
+        <div class="reveal-label">내일 강수확률 (기상청 단기예보)</div>
+        <div class="reveal-number"><span id="kmaAnswer">--</span><span class="reveal-unit">%</span></div>
+        <div class="reveal-desc" id="kmaAnswerDesc"></div>
+      </div>
+
+      <div class="diff-box">
+        <div class="diff-item">
+          <div class="label">내 예측</div>
+          <div class="value you" id="yourGuessDisplay">--</div>
+        </div>
+        <div class="diff-item">
+          <div class="label">기상청</div>
+          <div class="value kma" id="kmaDisplay">--</div>
+        </div>
+        <div class="diff-item">
+          <div class="label">차이</div>
+          <div class="value diff-num" id="diffDisplay">--</div>
+        </div>
+      </div>
+
+      <div class="section-label" style="margin-top:24px">D+1 ~ D+4 강수확률 추이</div>
+      <div class="prob-bars" id="probBars"></div>
+
+      <div class="callout">
+        <strong>패턴이 보이나요?</strong> 날짜가 멀어질수록 강수확률이 어떻게 변하는지 관찰해보세요.
+      </div>
+
+      <button class="btn" onclick="goStep3()">왜 이런 패턴이 나올까? →</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: 카오스 설명 -->
+  <div id="step3" class="hidden">
+    <div class="section">
+      <div class="step-indicator">
+        <div class="step-dot" id="dot1c"></div>
+        <div class="step-dot" id="dot2c"></div>
+        <div class="step-dot active" id="dot3c"></div>
+        <div class="step-dot" id="dot4c"></div>
+      </div>
+      <div class="section-label">Step 3 — 대기의 비밀</div>
+      <h2>기상청도 10일 뒤를<br>정확히 모릅니다</h2>
+      <p>기상청이 무능해서가 아닙니다. 대기 자체가 그렇게 생겼습니다.</p>
+
+      <div class="canvas-wrap">
+        <canvas id="lorenzCanvas" height="200"></canvas>
+        <div class="canvas-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#3B82F6"></div>시뮬레이션 A</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#EF4444"></div>시뮬레이션 B (0.001°C 차이)</div>
+        </div>
+      </div>
+
+      <div class="data-card">
+        <div class="data-card-title" style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px">두 시뮬레이션, 초기 온도 차이: <span id="epsilonDisplay">0.001</span>°C</div>
+        <div class="slider-wrap">
+          <div class="slider-labels"><span>작게</span><span>크게</span></div>
+          <input type="range" id="epsilonSlider" min="1" max="5" step="1" value="1" oninput="updateEpsilon(this.value)">
+        </div>
+        <p style="font-size:13px;color:var(--sub);margin-top:8px;line-height:1.6">슬라이더를 움직여 초기 오차의 크기를 바꿔보세요. 오차가 커질수록 두 궤적이 더 빨리 갈라집니다.</p>
+      </div>
+
+      <div class="callout">
+        1960년 MIT의 에드워드 로렌츠가 기상 모델을 돌리다 발견했습니다. <strong>초기 조건의 아주 작은 차이가 시간이 지나면서 완전히 다른 결과를 만들어냅니다.</strong> 이것이 "나비 효과"입니다.
+      </div>
+
+      <div class="data-card" style="margin-top:16px">
+        <div class="data-card-title">실제 기상청은 이렇게 합니다</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:14px;color:var(--sub);line-height:1.7">
+          <div>1. 초기 조건을 미세하게 다르게 설정한 모델을 <strong style="color:var(--text)">50개 이상 동시에</strong> 돌립니다</div>
+          <div>2. 50개 결과 중 비가 오는 게 30개면 → <strong style="color:var(--text)">강수확률 60%</strong></div>
+          <div>3. D+1은 50개가 거의 같은 결과 → 자신 있는 예보</div>
+          <div>4. D+10은 50개가 뿔뿔이 흩어짐 → 50% (동전 던지기)</div>
+        </div>
+      </div>
+
+      <button class="btn" style="margin-top:16px" onclick="goStep4()">그럼 예보관은 어떻게 발표할까? →</button>
+    </div>
+  </div>
+
+  <!-- STEP 4: 예보관의 딜레마 -->
+  <div id="step4" class="hidden">
+    <div class="section">
+      <div class="step-indicator">
+        <div class="step-dot" id="dot1d"></div>
+        <div class="step-dot" id="dot2d"></div>
+        <div class="step-dot" id="dot3d"></div>
+        <div class="step-dot active" id="dot4d"></div>
+      </div>
+      <div class="section-label">Step 4 — 예보관의 딜레마</div>
+      <h2>당신이 예보관이라면<br>뭐라고 발표하겠습니까?</h2>
+      <p>50개 모델 중 17개만 내일 비가 온다고 합니다. 어떻게 발표하시겠습니까?</p>
+
+      <div class="data-card" style="text-align:center">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">앙상블 모델 결과 (50개)</div>
+        <div id="ensembleDots" style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin:8px 0"></div>
+        <div style="font-size:13px;color:var(--sub);margin-top:8px">파란 점 = 비 / 회색 점 = 맑음</div>
+      </div>
+
+      <div class="choice-list" id="forecasterChoices">
+        <button class="choice-card" onclick="pickAnswer('a', this)">
+          "내일 비 소식이 있겠습니다" — 확실하게 발표
+        </button>
+        <button class="choice-card" onclick="pickAnswer('b', this)">
+          "내일 강수확률 34%입니다" — 확률로 발표
+        </button>
+        <button class="choice-card" onclick="pickAnswer('c', this)">
+          "내일은 맑겠습니다" — 비 올 가능성 낮으므로 맑음으로 발표
+        </button>
+      </div>
+
+      <div id="answerFeedback" class="hidden"></div>
+    </div>
+
+    <div id="finalResult" class="hidden section">
+      <div class="result-card">
+        <div class="result-title">예보는 '틀리는 것'이 아닙니다</div>
+        <div class="result-desc">
+          강수확률 34%는 정확히 34%가 맞습니다.<br>
+          "비 온다고 했는데 안 왔다"는 건 예보 실패가 아니라<br>
+          66%라는 가능성이 현실이 된 것입니다.<br><br>
+          진짜 문제는 예보를 '맞고 틀림'으로 판단하는 것입니다.
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top:0">
+        <strong>기상 리터러시:</strong> 강수확률 30% 이상이면 우산을 챙기는 게 합리적입니다. 예보가 틀렸다고 욕하지 말고, 확률을 내 의사결정에 활용하세요.
+      </div>
+
+      <div class="attr">
+        데이터 출처: 기상청 단기예보 조회서비스 (apis.data.go.kr)<br>
+        이 데모는 기상·기후 AI 해커톤 2026 참가자를 위한 개발 예시입니다.
+      </div>
+
+      <a href="index.html" class="btn ghost" style="margin-top:8px;display:block;text-align:center;text-decoration:none;">← 가이드로 돌아가기</a>
+    </div>
+  </div>
+
+</div><!-- /wrap -->
+
+<script>
+// ========================
+// STATE
+// ========================
+let forecastData = null;
+let userGuess = 30;
+let tomorrow = null;
+let lorenzAnim = null;
+
+// ========================
+// INIT
+// ========================
+document.getElementById('guessSlider').addEventListener('input', function() {
+  userGuess = Number(this.value);
+  document.getElementById('guessVal').textContent = this.value;
+});
+
+async function init() {
+  try {
+    const res = await fetch('/api/forecast?city=seoul');
+    if (!res.ok) throw new Error('API 오류');
+    forecastData = await res.json();
+    renderTodayCard();
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('step1').classList.remove('hidden');
+  } catch (e) {
+    // Fallback: 실제 API 없을 때 샘플 데이터
+    forecastData = {
+      city: '서울',
+      daily: [
+        { date: '오늘', maxPop: 20, avgPop: 13 },
+        { date: '내일', maxPop: 60, avgPop: 35 },
+        { date: '모레', maxPop: 40, avgPop: 22 },
+        { date: 'D+3',  maxPop: 30, avgPop: 18 },
+      ]
+    };
+    renderTodayCard();
+    document.getElementById('loadingState').classList.add('hidden');
+    document.getElementById('step1').classList.remove('hidden');
+  }
+}
+
+function renderTodayCard() {
+  const city = forecastData.city || '서울';
+  document.querySelectorAll('#cityName, #cityName2').forEach(el => el.textContent = city);
+
+  const card = document.getElementById('todayCard');
+  const days = forecastData.daily || [];
+  const today = days[0];
+
+  if (!today) return;
+
+  card.innerHTML = `
+    <div class="data-card-title">오늘 ${city} 단기예보 (기상청 실데이터)</div>
+    ${days.slice(0, 2).map((d, i) => `
+      <div class="data-row">
+        <span class="data-label">${i === 0 ? '오늘' : '내일'} 최대 강수확률</span>
+        <span class="data-value ${d.maxPop >= 60 ? 'high' : d.maxPop >= 30 ? 'mid' : 'low'}">${d.maxPop}%</span>
+      </div>
+    `).join('')}
+    <div class="data-row">
+      <div class="data-label" style="font-size:11px;color:var(--muted)">출처: 기상청 단기예보 조회서비스</div>
+      <div class="data-value" style="font-size:11px;color:var(--muted)">${forecastData.baseDate || ''}</div>
+    </div>
+  `;
+
+  tomorrow = days[1] || { maxPop: 40, avgPop: 30 };
+}
+
+// ========================
+// STEP TRANSITIONS
+// ========================
+function submitGuess() {
+  userGuess = Number(document.getElementById('guessSlider').value);
+
+  const ans = tomorrow?.maxPop ?? 40;
+  document.getElementById('kmaAnswer').textContent = ans;
+
+  let desc = '';
+  if (ans >= 70) desc = '비가 꽤 많이 올 가능성이 높습니다.';
+  else if (ans >= 50) desc = '비가 올 가능성이 과반을 넘습니다.';
+  else if (ans >= 30) desc = '비가 올 수도, 안 올 수도 있습니다.';
+  else desc = '비가 올 가능성은 낮습니다.';
+  document.getElementById('kmaAnswerDesc').textContent = desc;
+
+  document.getElementById('yourGuessDisplay').textContent = userGuess + '%';
+  document.getElementById('kmaDisplay').textContent = ans + '%';
+  const diff = Math.abs(userGuess - ans);
+  document.getElementById('diffDisplay').textContent = (diff === 0 ? '±0' : '±' + diff) + '%';
+
+  // Probability bars
+  const days = forecastData.daily || [];
+  const dayLabels = ['오늘', '내일', '모레', 'D+3', 'D+4'];
+  const barsHtml = days.slice(0, 5).map((d, i) => {
+    const pct = d.maxPop;
+    const isUncertain = pct >= 40 && pct <= 60;
+    return `
+      <div class="prob-row">
+        <div class="prob-label">${dayLabels[i] || 'D+' + i}</div>
+        <div class="prob-track">
+          <div class="prob-fill ${isUncertain ? 'uncertain' : ''}" style="width:${pct}%">
+            ${pct >= 20 ? `<span class="prob-fill-label">${pct}%</span>` : ''}
+          </div>
+        </div>
+        <div class="prob-pct" style="color:${isUncertain ? '#94A3B8' : 'var(--blue)'};">${pct}%</div>
+      </div>
+    `;
+  }).join('');
+  document.getElementById('probBars').innerHTML = barsHtml;
+
+  document.getElementById('step1').classList.add('hidden');
+  document.getElementById('step2').classList.remove('hidden');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goStep3() {
+  document.getElementById('step2').classList.add('hidden');
+  document.getElementById('step3').classList.remove('hidden');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  startLorenz();
+}
+
+function goStep4() {
+  document.getElementById('step3').classList.add('hidden');
+  document.getElementById('step4').classList.remove('hidden');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Ensemble dots
+  const dots = document.getElementById('ensembleDots');
+  dots.innerHTML = Array.from({ length: 50 }, (_, i) =>
+    `<div style="width:18px;height:18px;border-radius:50%;background:${i < 17 ? '#3B82F6' : '#E5E8EB'}"></div>`
+  ).join('');
+}
+
+function pickAnswer(choice, el) {
+  document.querySelectorAll('.choice-card').forEach(c => c.disabled = true);
+
+  const feedback = document.getElementById('answerFeedback');
+  feedback.classList.remove('hidden');
+
+  if (choice === 'b') {
+    el.classList.add('correct');
+    feedback.className = 'callout';
+    feedback.innerHTML = `<strong>정답입니다.</strong> 확률 34%는 예보관이 줄 수 있는 가장 정직한 답입니다. "비 온다" 또는 "안 온다"는 거짓말입니다. 불확실성을 그대로 전달하는 것이 기상 예보의 본질입니다.`;
+  } else if (choice === 'a') {
+    el.classList.add('wrong');
+    document.querySelectorAll('.choice-card')[1].classList.add('reveal');
+    feedback.className = 'callout';
+    feedback.style.borderLeftColor = '#EF4444';
+    feedback.style.background = '#FEE2E2';
+    feedback.innerHTML = `17/50 모델만 비를 예측했는데 "비 온다"고 단정하면, 비가 안 왔을 때 예보가 <strong>틀린</strong> 것이 됩니다. 확률을 알면서 숨기는 건 오히려 나쁜 예보입니다.`;
+  } else {
+    el.classList.add('wrong');
+    document.querySelectorAll('.choice-card')[1].classList.add('reveal');
+    feedback.className = 'callout';
+    feedback.style.borderLeftColor = '#EF4444';
+    feedback.style.background = '#FEE2E2';
+    feedback.innerHTML = `17개 모델이 비를 예측했습니다. 34%는 무시하기엔 꽤 높은 확률입니다. "맑음"으로 발표했다가 비가 오면 누군가 우산 없이 흠뻑 젖습니다.`;
+  }
+
+  setTimeout(() => {
+    document.getElementById('finalResult').classList.remove('hidden');
+  }, 800);
+}
+
+// ========================
+// LORENZ ATTRACTOR
+// ========================
+let epsilonLevel = 1;
+const epsilonValues = [0.001, 0.005, 0.01, 0.05, 0.1];
+
+function updateEpsilon(val) {
+  epsilonLevel = Number(val);
+  const eps = epsilonValues[epsilonLevel - 1];
+  document.getElementById('epsilonDisplay').textContent = eps;
+  startLorenz();
+}
+
+function lorenzStep(x, y, z, dt = 0.01) {
+  const sigma = 10, rho = 28, beta = 8 / 3;
+  const dx = sigma * (y - x);
+  const dy = x * (rho - z) - y;
+  const dz = x * y - beta * z;
+  return [x + dx * dt, y + dy * dt, z + dz * dt];
+}
+
+function startLorenz() {
+  if (lorenzAnim) cancelAnimationFrame(lorenzAnim);
+
+  const canvas = document.getElementById('lorenzCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth;
+  const H = 200;
+  canvas.width = W;
+  canvas.height = H;
+
+  const eps = epsilonValues[epsilonLevel - 1];
+
+  // Start positions
+  let [x1, y1, z1] = [0.1, 0, 0];
+  let [x2, y2, z2] = [0.1 + eps, 0, 0];
+
+  const trailA = [];
+  const trailB = [];
+  const MAX_TRAIL = 300;
+  let frame = 0;
+
+  // Warm up (skip transient)
+  for (let i = 0; i < 500; i++) {
+    [x1, y1, z1] = lorenzStep(x1, y1, z1);
+    [x2, y2, z2] = lorenzStep(x2, y2, z2);
+  }
+
+  function toCanvas(x, z) {
+    const cx = W / 2 + x * (W / 60);
+    const cy = H / 2 - (z - 25) * (H / 50);
+    return [cx, cy];
+  }
+
+  function draw() {
+    for (let i = 0; i < 3; i++) {
+      [x1, y1, z1] = lorenzStep(x1, y1, z1);
+      [x2, y2, z2] = lorenzStep(x2, y2, z2);
+      trailA.push(toCanvas(x1, z1));
+      trailB.push(toCanvas(x2, z2));
+      if (trailA.length > MAX_TRAIL) { trailA.shift(); trailB.shift(); }
+    }
+
+    ctx.fillStyle = 'rgba(10, 22, 40, 0.25)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Draw A
+    if (trailA.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(...trailA[0]);
+      for (let i = 1; i < trailA.length; i++) {
+        ctx.lineTo(...trailA[i]);
+        const alpha = i / trailA.length;
+        ctx.strokeStyle = `rgba(59, 130, 246, ${alpha * 0.9})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(...trailA[i]);
+      }
+    }
+
+    // Draw B
+    if (trailB.length > 1) {
+      ctx.beginPath();
+      ctx.moveTo(...trailB[0]);
+      for (let i = 1; i < trailB.length; i++) {
+        ctx.lineTo(...trailB[i]);
+        const alpha = i / trailB.length;
+        ctx.strokeStyle = `rgba(239, 68, 68, ${alpha * 0.9})`;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(...trailB[i]);
+      }
+    }
+
+    // Distance label
+    const dist = Math.sqrt((x1-x2)**2 + (y1-y2)**2 + (z1-z2)**2);
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '11px monospace';
+    ctx.fillText(`두 궤적 거리: ${dist.toFixed(2)}`, 10, H - 10);
+
+    frame++;
+    lorenzAnim = requestAnimationFrame(draw);
+  }
+
+  draw();
+}
+
+// ========================
+// START
+// ========================
+init();
+</script>
+</body>
+</html>
