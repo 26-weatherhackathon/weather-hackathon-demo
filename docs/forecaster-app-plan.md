@@ -1,7 +1,6 @@
 # 「예보관 의사결정 체험」 개발 계획서
 
 > 기상·기후 AI 해커톤 2026 · Vercel 배포 기준
-> 참조 레포: `booboobook/booboobook` (Astro + Vercel, https://booboobook.aioia.ai)
 
 ---
 
@@ -21,22 +20,21 @@
 
 ## 1. 기술 스택
 
-booboobook 레포와 동일한 스택을 채택해 팀 내 배포 경험을 재사용합니다.
+이미 검증된 스택을 채택해 팀 내 배포 경험을 재사용합니다.
 
 | 역할 | 선택 | 근거 |
 |---|---|---|
-| 프레임워크 | **Astro** | booboobook과 동일, 정적 출력 + Island 인터랙션에 최적 |
+| 프레임워크 | **Astro** | 정적 출력 + Island 인터랙션에 최적 |
 | UI 인터랙션 | Astro Islands (Vanilla JS / Preact) | 지도·슬라이더·레이어 토글은 Island로 격리 |
-| 스타일 | Tailwind CSS | 빠른 UI 반복, booboobook 컨벤션 유지 |
+| 스타일 | Tailwind CSS | 빠른 UI 반복 |
 | 데이터 | 정적 JSON + PNG (사전 수집) | 실시간 API 호출 없음 → 현장 데모 안정성 확보 |
-| 배포 | **Vercel** | booboobook과 동일 플랫폼, `vercel.json` 재사용 |
-| 도메인 | `forecaster.aioia.ai` (제안) | booboobook.aioia.ai와 동일 패턴 |
+| 배포 | **Vercel** | `vercel.json` 재사용 |
 
 ---
 
 ## 2. 레포지토리 구조
 
-booboobook의 Astro 디렉토리 컨벤션을 그대로 따릅니다.
+Astro 표준 디렉토리 컨벤션을 그대로 따릅니다.
 
 ```
 forecaster-experience/
@@ -67,7 +65,7 @@ forecaster-experience/
 │   │   ├── ReflectionInput.astro       # "무엇을 놓쳤나" 입력
 │   │   └── ScoreDashboard.astro        # 누적 성장 대시보드
 │   ├── layouts/
-│   │   └── BaseLayout.astro            # 공통 헤더·푸터 (booboobook 패턴)
+│   │   └── BaseLayout.astro            # 공통 헤더·푸터
 │   ├── pages/
 │   │   ├── index.astro                 # 랜딩 + 케이스 라이브러리
 │   │   ├── onboarding.astro            # 30초 데이터 유형 설명 + 확인 퀴즈
@@ -93,7 +91,7 @@ forecaster-experience/
 ### Phase 0 — 환경 세팅 (Day 1~2)
 
 ```bash
-# booboobook과 동일한 초기화 패턴
+# 표준 Astro 초기화
 npm create astro@latest forecaster-experience -- --template minimal
 cd forecaster-experience
 npx astro add tailwind
@@ -302,7 +300,7 @@ interface CaseResult {
 # 빌드 확인
 npm run build && npm run preview
 
-# Vercel 배포 (booboobook과 동일 절차)
+# Vercel 배포
 vercel --prod
 ```
 
@@ -316,9 +314,9 @@ vercel --prod
 | Root Directory | `.` |
 | Node.js Version | 20.x |
 
-**도메인 연결** (booboobook.aioia.ai 패턴):
-- Vercel 대시보드 → Domains → `forecaster.aioia.ai` 추가
-- DNS: CNAME `forecaster` → `cname.vercel-dns.com`
+**도메인 연결:**
+- Vercel 대시보드 → Domains → 사용할 도메인 추가
+- DNS: CNAME 레코드 → `cname.vercel-dns.com`
 
 ---
 
@@ -351,7 +349,7 @@ vercel --prod
 
 ## 4-B. AI 이미지 대량 활용 — 시각적 임팩트 전략
 
-> **확정 방향: "화려하게, 이미지는 많을수록 좋다."** booboobook의 스토리텔링 감성을 차용해,
+> **확정 방향: "화려하게, 이미지는 많을수록 좋다."** 스토리텔링 감성을 살려,
 > 딱딱한 기상 데이터를 **몰입형 비주얼**로 감싼다. 실데이터(위성·레이더)는 정보로, AI 이미지는
 > 분위기·해설·캐릭터로 역할을 분리한다. (실데이터와 AI 생성물은 화면에 명확히 라벨로 구분)
 
@@ -432,7 +430,7 @@ public/
 
 ### 환경 세팅
 - [ ] `npm create astro@latest` + Tailwind + Vercel 어댑터
-- [ ] `vercel.json` 설정 (booboobook 참조)
+- [ ] `vercel.json` 설정
 - [ ] GitHub 레포 연결 + Vercel 자동 배포 설정
 
 ### 데이터 수집 (실 API허브 — 1케이스 완전체)
@@ -474,7 +472,7 @@ public/
 ### 배포
 - [ ] `npm run build` 오류 없이 통과
 - [ ] Vercel 프로덕션 배포
-- [ ] `forecaster.aioia.ai` 도메인 연결
+- [ ] 도메인 연결 (Vercel 대시보드)
 - [ ] 모바일 반응형 확인
 - [ ] 현장 오프라인 동작 확인 (네트워크 차단 상태에서 테스트)
 
@@ -482,7 +480,6 @@ public/
 
 ## 참조
 
-- booboobook 레포: `booboobook/booboobook` (Astro + Vercel, 동일 스택)
 - 기상청 API허브: apihub.kma.go.kr
 - 공공데이터포털: data.go.kr
 - Astro 공식 Vercel 가이드: docs.astro.build/guides/deploy/vercel
