@@ -1,7 +1,6 @@
 # 「예보관 의사결정 체험」 실행 명세서 (Build Spec v1.0)
 
 > 기상·기후 AI 해커톤 2026 출품작 · **AI 에이전트 실행용 마스터 문서**
-> 참조 스택: `booboobook/booboobook` (Astro + Vercel, https://booboobook.aioia.ai)
 > 기반 설계: 「예보관 의사결정 체험」 백워드 설계 문서 (UbD 3-Stage)
 
 ---
@@ -72,7 +71,7 @@
 
 ## 2. 기술 스택 (정확한 버전)
 
-booboobook과 동일 계열. 버전은 2026-06 기준 최신 안정.
+검증된 스택 계열. 버전은 2026-06 기준 최신 안정.
 
 | 영역 | 선택 | 버전(권장) | 비고 |
 |---|---|---|---|
@@ -85,7 +84,7 @@ booboobook과 동일 계열. 버전은 2026-06 기준 최신 안정.
 | 배포 | Vercel | `@astrojs/vercel/static` | 정적 + `api/` 서버리스 |
 | AI 텍스트 | Anthropic SDK | `@anthropic-ai/sdk` 최신 | 모델 `claude-sonnet-4-6` (리플렉션 피드백) |
 | 폰트 | Pretendard | v1.3.9 CDN | 기존 가이드와 통일 |
-| 패키지매니저 | npm | - | booboobook 컨벤션 |
+| 패키지매니저 | npm | - | - |
 
 ### 2.1 의존성 설치 (Day 1)
 ```bash
