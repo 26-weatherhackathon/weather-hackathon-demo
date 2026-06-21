@@ -1,0 +1,71 @@
+name: Security Check
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+    branches: [main]
+
+jobs:
+  secrets-check:
+    name: Check for hardcoded secrets
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Run secret check
+        run: node scripts/check-secrets.js
+        env:
+          SKIP_SECRETS_CHECK: 0
+        continue-on-error: true
+
+      - name: GitHub Secret Scanning
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --debug --only-verified
+
+  env-validation:
+    name: Validate environment configuration
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check .env files not committed
+        run: |
+          if git ls-files --error-unmatch .env .env.local .env.*.local 2>/dev/null; then
+            echo "❌ Error: .env files should not be committed!"
+            exit 1
+          fi
+          echo "✓ No .env files in git"
+
+      - name: Verify .gitignore includes .env
+        run: |
+          if grep -q "^\.env\*" .gitignore; then
+            echo "✓ .env files are properly ignored"
+          else
+            echo "❌ Warning: .env files may not be properly ignored"
+            exit 1
+          fi
+
+      - name: Check .env.example exists
+        run: |
+          if [ -f ".env.example" ]; then
+            echo "✓ .env.example template found"
+          else
+            echo "❌ Warning: .env.example template not found"
+            exit 1
+          fi

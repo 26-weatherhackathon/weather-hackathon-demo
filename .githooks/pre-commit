@@ -1,0 +1,11 @@
+#!/bin/sh
+# Pre-commit hook to check for hardcoded secrets
+
+set -e
+
+echo "🔍 Checking for hardcoded secrets..."
+
+# Run the secret checking script
+node scripts/check-secrets.js
+
+echo "✓ Secret check passed"
