@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>골든타임 — 레이더로 대피 시간을 버는 게임</title>
+<style>
+  :root{
+    --night:#0d1622; --panel:#16273c; --panel2:#0f1e31; --line:#2a4260;
+    --ink:#e8eef7; --muted:#8ba0bd;
+    --rain:#4dabf7; --warn:#ff6b5e; --gold:#ffcf4d; --leaf:#43d18a; --purple:#b197fc;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+    background:var(--night); color:var(--ink); line-height:1.6;
+  }
+  .wrap{max-width:820px;margin:0 auto;padding:0 16px}
+  button{font-family:inherit}
+
+  /* ── HUD ── */
+  #hud{position:sticky;top:0;z-index:50;background:rgba(13,22,34,.95);backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);padding:8px 0;display:none}
+  #hud .wrap{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .hud-chip{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    padding:6px 12px;font-size:13px}
+  .hud-chip b{font-size:17px;font-variant-numeric:tabular-nums}
+  #hudEta b{color:var(--warn)}
+  #hudEta.unknown b{color:var(--muted);font-size:13px}
+  #hudScore b{color:var(--gold)}
+  .combo-chip{font-size:12.5px;font-weight:800;color:var(--gold);background:rgba(255,207,77,.1);
+    border:1px solid rgba(255,207,77,.35);border-radius:999px;padding:5px 10px;display:none}
+  .combo-chip.show{display:block;animation:pop .3s}
+  @keyframes pop{0%{transform:scale(.5)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
+
+  /* ── 화면 공통 ── */
+  section.screen{display:none;padding:28px 0 60px}
+  section.screen.show{display:block}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:14px}
+  .btn{display:inline-block;padding:13px 26px;border-radius:12px;border:none;cursor:pointer;
+    background:var(--rain);color:var(--night);font-size:15.5px;font-weight:900;transition:transform .12s}
+  .btn:hover{transform:translateY(-2px)}
+  .btn.gold{background:linear-gradient(120deg,var(--gold),#ffb84d)}
+  .btn.danger{background:var(--warn);color:#fff}
+  .btn.ghost{background:transparent;border:1.5px solid var(--line);color:var(--muted)}
+  .btn:disabled{opacity:.35;cursor:not-allowed;transform:none}
+
+  /* ── 타이틀 ── */
+  #title{text-align:center;padding-top:56px}
+  .kicker{display:inline-block;font-size:12px;letter-spacing:.18em;font-weight:800;color:var(--rain);
+    border:1px solid rgba(77,171,247,.4);border-radius:999px;padding:5px 14px;margin-bottom:16px}
+  #title h1{font-size:clamp(30px,6vw,50px);font-weight:900;line-height:1.2;
+    background:linear-gradient(120deg,#fff 30%,var(--rain));-webkit-background-clip:text;background-clip:text;color:transparent}
+  #title p.lead{max-width:560px;margin:18px auto 0;font-size:15.5px;color:#c3d0e2}
+  #title p.lead b{color:var(--gold)}
+  .target-box{max-width:560px;margin:26px auto 0;text-align:left;font-size:13px;color:var(--muted);
+    border:1px dashed var(--line);border-radius:12px;padding:12px 16px}
+  .target-box b{color:#c3d0e2}
+
+  /* ── 브리핑 ── */
+  .brief-step{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}
+  .brief-step .n{flex:none;width:30px;height:30px;border-radius:50%;background:var(--rain);color:var(--night);
+    font-weight:900;display:flex;align-items:center;justify-content:center}
+
+  /* ── 플레이 ── */
+  .scene-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .weather-chip{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:8px 14px;font-size:13.5px}
+  .weather-chip b{font-variant-numeric:tabular-nums}
+  #narrLog{font-size:13.5px;color:var(--muted);min-height:22px}
+  #narrLog b{color:var(--gold)}
+
+  .tasks{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+  .task{background:var(--panel);border:1.5px solid var(--line);border-radius:12px;padding:13px 14px;
+    cursor:pointer;transition:all .15s;position:relative}
+  .task:hover:not(.done):not(.running){transform:translateY(-2px);border-color:var(--rain)}
+  .task .t-name{font-size:14.5px;font-weight:800}
+  .task .t-cost{font-size:12px;color:var(--muted);margin-top:3px}
+  .task .t-tag{position:absolute;top:9px;right:10px;font-size:10.5px;font-weight:900;letter-spacing:.05em;
+    padding:2px 7px;border-radius:6px}
+  .task .t-tag.p1{background:rgba(255,107,94,.15);color:var(--warn)}
+  .task .t-tag.p2{background:rgba(77,171,247,.15);color:var(--rain)}
+  .task .t-tag.p3{background:rgba(139,160,189,.15);color:var(--muted)}
+  .task.running{border-color:var(--gold)}
+  .task.done{opacity:.42;cursor:default}
+  .task.done::after{content:'완료';position:absolute;right:10px;bottom:10px;font-size:11px;color:var(--leaf);font-weight:900}
+  .task .prog{height:5px;background:var(--panel2);border-radius:99px;margin-top:9px;overflow:hidden;display:none}
+  .task.running .prog{display:block}
+  .task .prog i{display:block;height:100%;width:0%;background:var(--gold);border-radius:99px}
+
+  .action-row{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+  #radarBtn{position:relative}
+  #radarBtn .pulse{position:absolute;top:-4px;right:-4px;width:12px;height:12px;border-radius:50%;
+    background:var(--warn);animation:pulse 1.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,107,94,.6)}70%{box-shadow:0 0 0 10px rgba(255,107,94,0)}100%{box-shadow:0 0 0 0 rgba(255,107,94,0)}}
+
+  /* ── 레이더 오버레이 ── */
+  #radarOverlay{display:none;position:fixed;inset:0;z-index:100;background:rgba(5,10,18,.9);
+    align-items:center;justify-content:center;padding:16px}
+  #radarOverlay.show{display:flex}
+  .radar-box{background:var(--panel);border:1px solid var(--line);border-radius:16px;
+    max-width:640px;width:100%;max-height:92vh;overflow-y:auto;padding:18px}
+  .radar-box h3{font-size:16px;margin-bottom:4px}
+  .radar-box .src{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+  canvas#radarMap{width:100%;border-radius:10px;background:#0a1322;display:block}
+  .legend{display:flex;gap:8px;font-size:11.5px;color:var(--muted);margin-top:8px;flex-wrap:wrap;align-items:center}
+  .legend i{display:inline-block;width:14px;height:10px;border-radius:2px;margin-right:3px}
+  .cum-gauge{margin-top:12px}
+  .cum-gauge .g-label{font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between}
+  .g-track{height:14px;background:var(--panel2);border:1px solid var(--line);border-radius:99px;
+    overflow:hidden;position:relative;margin-top:4px}
+  .g-fill{height:100%;background:linear-gradient(90deg,var(--rain),var(--warn));border-radius:99px;width:0%}
+  .g-threshold{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--gold)}
+  .time-slider{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:13px}
+  .time-slider input{flex:1}
+  .eta-note{margin-top:12px;padding:11px 14px;border-radius:10px;background:rgba(255,107,94,.08);
+    border:1px solid rgba(255,107,94,.3);font-size:14px;display:none}
+  .eta-note.show{display:block}
+  .quiz{margin-top:12px;display:none}
+  .quiz.show{display:block}
+  .quiz .choices{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+  .quiz button{text-align:left;padding:11px 14px;border-radius:9px;border:1.5px solid var(--line);
+    background:var(--panel2);color:var(--ink);font-size:14px;cursor:pointer}
+  .quiz button.ok{border-color:var(--leaf);background:rgba(67,209,138,.12)}
+  .quiz button.no{border-color:var(--warn);background:rgba(255,107,94,.1)}
+  .quiz .fb{display:none;margin-top:9px;font-size:13.5px;padding:10px 13px;border-radius:9px;
+    background:rgba(77,171,247,.08);border:1px solid rgba(77,171,247,.3)}
+  .quiz .fb.show{display:block}
+
+  /* ── 결과 ── */
+  .stars{font-size:44px;letter-spacing:6px;text-align:center;margin:6px 0}
+  .big-time{text-align:center;font-size:40px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums}
+  .big-time small{font-size:15px;color:var(--muted);font-weight:400;display:block}
+  .tl{margin-top:14px}
+  .tl .tl-row{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--panel2);font-size:14px}
+  .tl .tl-t{flex:none;width:64px;font-variant-numeric:tabular-nums;font-weight:800;color:var(--rain)}
+  .tl .tl-row.bad .tl-t{color:var(--warn)}
+  .tl .tl-row.you .tl-t{color:var(--gold)}
+  .reveal{margin-top:14px;padding:14px 16px;border-radius:12px;background:rgba(255,207,77,.08);
+    border:1.5px solid rgba(255,207,77,.4);font-size:14.5px}
+
+  /* ── 엔딩 ── */
+  .check{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border:1px solid var(--line);
+    border-radius:11px;margin-bottom:9px;background:var(--panel2);font-size:14.5px;cursor:pointer}
+  .check input{margin-top:4px}
+  .check a{color:var(--rain)}
+
+  /* ── 토스트 ── */
+  #toasts{position:fixed;top:64px;right:14px;z-index:200;display:flex;flex-direction:column;gap:8px}
+  .toast{background:var(--panel);border:1.5px solid var(--gold);border-radius:11px;padding:10px 15px;
+    font-size:13.5px;font-weight:700;max-width:290px;animation:slideIn .3s;display:flex;gap:8px;align-items:center}
+  .toast.bad{border-color:var(--warn)}
+  @keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+  footer{border-top:1px solid var(--line);margin-top:20px;padding:18px 0 40px;font-size:11.5px;color:var(--muted)}
+  footer .wrap{display:flex;flex-direction:column;gap:4px}
+
+  @media (prefers-reduced-motion: reduce){*{animation:none !important;transition:none !important}}
+  @media (max-width:520px){ .tasks{grid-template-columns:1fr 1fr} .task .t-name{font-size:13.5px} }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div class="wrap">
+    <div class="hud-chip">현재 <b id="hudClock">08:30</b></div>
+    <div class="hud-chip unknown" id="hudEta">급류 도달 <b>레이더 미확인</b></div>
+    <div class="hud-chip" id="hudScore">점수 <b>0</b></div>
+    <div class="combo-chip" id="comboChip">콤보 ×<span id="comboN">2</span></div>
+  </div>
+</div>
+
+<!-- 타이틀 -->
+<section class="screen show" id="title">
+  <div class="wrap">
+    <div class="kicker">GOLDEN TIME · 2026-07-08 충북 실측 데이터</div>
+    <h1>골든타임</h1>
+    <p class="lead">
+      계곡 캠핑장의 아침. 머리 위 하늘은 아직 견딜 만하다.<br>
+      하지만 <b>상류의 데이터는 다른 이야기</b>를 하고 있다.<br>
+      레이더를 읽는 사람만이 시간을 번다. <b>번 시간이 곧 점수다.</b>
+    </p>
+    <p style="margin-top:22px"><button class="btn gold" onclick="G.showBrief()">시작하기</button></p>
+    <div class="target-box">
+      <b>이 데모의 타겟 선언</b><br>
+      누가: 일반 시민 (기상 전공지식 0, 중학생 이상) ·
+      무엇을: 레이더·강수 데이터를 읽고 대피 시간을 버는 방법 ·
+      어디서: 웹 브라우저, 1회 3~5분
+    </div>
+  </div>
+</section>
+
+<!-- 브리핑 -->
+<section class="screen" id="brief">
+  <div class="wrap">
+    <div class="card">
+      <h2 style="font-size:19px;margin-bottom:12px">30초 브리핑</h2>
+      <div class="brief-step"><span class="n">1</span><div><b>할 일이 쌓입니다.</b> 탭해서 처리하세요. 무엇부터 할지가 곧 실력입니다. 사람이 먼저, 물건은 나중.</div></div>
+      <div class="brief-step"><span class="n">2</span><div><b>가끔 레이더를 여세요.</b> 시간이 조금 들지만, 상류 강수의 발달을 봐야 급류 도달 시각을 알 수 있습니다. 안 보면 카운트다운은 계속 물음표입니다.</div></div>
+      <div class="brief-step"><span class="n">3</span><div><b>제때 떠나세요.</b> 대피 버튼을 누르면 고지대까지 이동합니다. 급류 도달보다 얼마나 먼저 도착했는가 = 골든타임 = 점수.</div></div>
+      <p style="margin-top:12px;font-size:13px;color:var(--muted)">이 게임의 강수량은 2026년 7월 8일 충북에 실제로 내린 비의 시간별 기록입니다.</p>
+    </div>
+    <button class="btn gold" onclick="G.startPlay()">그날 아침으로 이동</button>
+  </div>
+</section>
+
+<!-- 플레이 -->
+<section class="screen" id="play">
+  <div class="wrap">
+    <div class="scene-bar">
+      <div class="weather-chip">캠핑장 하늘 <b id="skyNow">흐림, 비 시작 전</b></div>
+      <div class="weather-chip">캠핑장 강수 <b id="rainNow">0.0</b> mm/h</div>
+    </div>
+    <p id="narrLog">계곡의 아침. 물소리가 어제보다 크게 들린다.</p>
+
+    <div class="tasks" id="taskGrid" style="margin-top:12px"></div>
+
+    <div class="action-row">
+      <button class="btn" id="radarBtn" onclick="G.openRadar()">레이더 확인 <span style="font-weight:400;font-size:12px">(5분 소요)</span><span class="pulse"></span></button>
+      <button class="btn danger" id="evacBtn" onclick="G.evacuate()">지금 대피 출발 (이동 12분)</button>
+    </div>
+    <p style="margin-top:10px;font-size:12.5px;color:var(--muted)">화면의 1초 = 그날의 2분</p>
+  </div>
+</section>
+
+<!-- 레이더 오버레이 -->
+<div id="radarOverlay">
+  <div class="radar-box">
+    <h3>강수 상황판 — 미호강 수계</h3>
+    <div class="src">실측 강수량 기반 재구성 지도 (레이더 원영상 아님) · 출처: open-meteo 실측 재분석 · 2026-07-08</div>
+    <canvas id="radarMap" width="600" height="380"></canvas>
+    <div class="legend">
+      <span><i style="background:#a5d8ff"></i>1미만</span>
+      <span><i style="background:#4dabf7"></i>1~3</span>
+      <span><i style="background:#fab005"></i>3~6</span>
+      <span><i style="background:#f76707"></i>6~10</span>
+      <span><i style="background:#e03131"></i>10+</span>
+      <span style="margin-left:auto">단위 mm/h</span>
+    </div>
+    <div class="time-slider">
+      <span>지난 기록</span>
+      <input type="range" id="frameSlider" min="6" max="8" value="8" step="1">
+      <b id="frameLabel" style="font-variant-numeric:tabular-nums">08:00</b>
+    </div>
+    <div class="cum-gauge">
+      <div class="g-label"><span>상류 누적 강수 (급류 임계 <b id="thLabel">18</b>mm)</span><b id="cumLabel">0.0mm</b></div>
+      <div class="g-track"><div class="g-fill" id="cumFill"></div><div class="g-threshold" id="thMark"></div></div>
+    </div>
+    <div class="eta-note" id="etaNote"></div>
+
+    <div class="quiz" id="radarQuiz">
+      <b style="font-size:14.5px">판독 퀴즈 — 지금 이 상황판에서 가장 중요한 신호는?</b>
+      <div class="choices">
+        <button data-k="a">캠핑장에 아직 비가 거의 안 온다는 것</button>
+        <button data-k="b">상류의 비가 계속 발달하며 누적되고 있다는 것</button>
+        <button data-k="c">청주 도심에 비가 온다는 것</button>
+      </div>
+      <div class="fb" id="quizFb"></div>
+    </div>
+
+    <div style="margin-top:14px;text-align:right"><button class="btn ghost" onclick="G.closeRadar()">상황판 닫기</button></div>
+  </div>
+</div>
+
+<!-- 결과 -->
+<section class="screen" id="result">
+  <div class="wrap">
+    <div class="card" id="resultCard"></div>
+    <div class="card">
+      <h3 style="font-size:15.5px;margin-bottom:8px">그날의 타임라인 — 데이터는 언제부터 말하고 있었나</h3>
+      <div class="tl" id="timeline"></div>
+      <div class="reveal" id="revealBox"></div>
+    </div>
+    <div class="action-row">
+      <button class="btn gold" onclick="location.reload()">다시 그 아침으로 (재도전)</button>
+      <button class="btn" onclick="G.showEnding()">오늘의 현실로 →</button>
+    </div>
+  </div>
+</section>
+
+<!-- 엔딩: 우리 동네 모드 -->
+<section class="screen" id="ending">
+  <div class="wrap">
+    <div class="card">
+      <h2 style="font-size:19px;margin-bottom:6px">게임은 끝났지만, 장마는 진짜입니다</h2>
+      <p style="font-size:14px;color:#c3d0e2;margin-bottom:14px">오늘 3분이면 되는 진짜 골든타임 준비 3가지. 하나라도 하면 이 게임의 학습 목표 달성입니다.</p>
+      <label class="check"><input type="checkbox"><span>내 폰에서 <a href="https://www.weather.go.kr/w/image/rdr-sat.do" target="_blank" rel="noopener">기상청 레이더 영상</a>을 열어 즐겨찾기에 추가한다</span></label>
+      <label class="check"><input type="checkbox"><span>재난문자 수신 설정을 확인하고, <a href="https://www.safekorea.go.kr" target="_blank" rel="noopener">국민재난안전포털</a>에서 우리 동네 대피 장소를 찾아본다</span></label>
+      <label class="check"><input type="checkbox"><span>계곡·하천에 갈 일이 있으면 출발 전 상류 쪽 강수를 먼저 본다 — 내 머리 위 하늘이 아니라</span></label>
+    </div>
+    <button class="btn ghost" onclick="location.reload()">처음으로</button>
+  </div>
+</section>
+
+<div id="toasts"></div>
+
+<footer>
+  <div class="wrap">
+    <span>기상·기후 AI 해커톤 2026 운영진 대표 데모 (방법론 시연용) — 본선팀 제출물과 무관하게 제작되었습니다</span>
+    <span>강수량 데이터: 2026-07-08 충북 4지점 실측 기반 재분석 (open-meteo.com) · 원본 응답: data/raw/</span>
+    <span>급류 도달 시각은 교육용 단순화 파생 모델입니다. 행동 우선순위 근거: 행정안전부 국민재난안전포털 호우 시 국민행동요령</span>
+    <span>교과 연계: 중학교 과학 [9과17-04] 탐구활동 "일기도, 레이더 및 위성 영상 등 실시간 데이터를 활용하여 날씨 해석하기" · 학교 안전교육 7대 표준안(자연재난)</span>
+  </div>
+</footer>
+
+<script>
+/* ════════ 골든타임 — 게임 엔진 ════════
+   docs/golden-time-plan.md §4 사양의 v0 구현.
+   시간 단위: 게임 분(gameMin). 화면 1초 = 2게임분.               */
+
+const G = {
+  caseData: null,
+  // 시각 체계: 그날 08:30 시작
+  startMin: 8 * 60 + 30,
+  nowMin: 8 * 60 + 30,
+  speed: 2,              // 1초당 게임분
+  floodEtaMin: null,     // 파생 모델로 계산
+  etaKnown: 0,           // 레이더 확인 횟수 (0 = 미확인)
+  radarChecks: [],       // 확인 시각 기록
+  score: 0, combo: 0,
+  activeTask: null,
+  evacuating: false, over: false,
+  quizDone: false, quizCorrect: false,
+  timerId: null,
+};
+
+/* ── 태스크 정의: 행동요령 우선순위 (P1 인명 > P2 필수·이동 > P3 물건은 포기 대상) ── */
+const TASKS = [
+  { id:'alert',  name:'일행에게 위험 알리기',        min:8,  pr:1, tag:'인명' },
+  { id:'kids',   name:'아이·노약자 먼저 이동 준비',  min:14, pr:1, tag:'인명' },
+  { id:'ess',    name:'휴대폰·차키·귀중품만 챙기기', min:10, pr:2, tag:'필수' },
+  { id:'car',    name:'차를 고지대로 옮기기',        min:20, pr:2, tag:'이동' },
+  { id:'tent',   name:'텐트·타프 전부 철수',         min:30, pr:3, tag:'물건' },
+  { id:'gear',   name:'취사장비 설거지·정리',        min:24, pr:3, tag:'물건' },
+  { id:'photo',  name:'불어난 계곡 영상 촬영',       min:10, pr:3, tag:'물건' },
+];
+const state = {}; TASKS.forEach(t=>state[t.id]={done:false, running:false, prog:0});
+
+/* ── 유틸 ── */
+const $ = id => document.getElementById(id);
+const fmt = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(Math.round(m%60)).padStart(2,'0')}`;
+function toast(msg, bad=false){
+  const t=document.createElement('div'); t.className='toast'+(bad?' bad':''); t.textContent=msg;
+  $('toasts').appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transition='opacity .4s';setTimeout(()=>t.remove(),400)},2400);
+}
+function addScore(n,label){
+  G.score=Math.max(0,G.score+n);
+  $('hudScore').querySelector('b').textContent=G.score;
+  toast((n>=0?'+':'')+n+'점 · '+label, n<0);
+}
+function comboUp(){
+  G.combo++;
+  if(G.combo>=2){
+    $('comboN').textContent=G.combo;
+    const c=$('comboChip'); c.classList.remove('show'); void c.offsetWidth; c.classList.add('show');
+    addScore(5*(G.combo-1),'우선순위 콤보');
+  }
+}
+function comboBreak(){ G.combo=0; $('comboChip').classList.remove('show'); }
+
+/* ── 데이터 로드 + 파생 모델 ── */
+async function loadCase(){
+  const res = await fetch('./data/case-20260708-chungbuk.json');
+  G.caseData = await res.json();
+  const {time, precipitation:pr} = G.caseData.hourly;
+  const up = time.map((_,i)=>((pr.upstream1[i]||0)+(pr.upstream2[i]||0))/2);
+  // 임계 초과 시각(분) 탐색: 시간 i의 값 = i-1시→i시 강수로 보고 선형 보간
+  const th = G.caseData.derivedModel.thresholdMm, lag = G.caseData.derivedModel.lagMinutes;
+  let cum=0;
+  for(let i=0;i<up.length;i++){
+    const prev=cum; cum+=up[i];
+    if(cum>=th){
+      const frac=(th-prev)/(up[i]||1);
+      G.floodEtaMin = (i-1)*60 + frac*60 + lag;
+      break;
+    }
+  }
+  if(G.floodEtaMin===null) G.floodEtaMin = 23*60;
+  G.upSeries = up; G.times = time; G.pr = pr;
+}
+loadCase();
+
+/* ── 화면 전환 ── */
+function show(id){
+  document.querySelectorAll('section.screen').forEach(s=>s.classList.remove('show'));
+  $(id).classList.add('show');
+  window.scrollTo({top:0});
+}
+G.showBrief = ()=> show('brief');
+
+G.startPlay = ()=>{
+  show('play'); $('hud').style.display='block';
+  renderTasks();
+  G.timerId = setInterval(tick, 500);   // 0.5초마다 1게임분
+};
+
+/* ── 메인 루프 ── */
+const NARR = [
+  [9*60,   '09:00 — 빗방울이 듣기 시작한다. 그래도 "이 정도야" 싶은 비.'],
+  [10*60,  '10:00 — 빗줄기가 굵어졌다. 계곡 물소리가 확실히 커졌다.'],
+  [11*60,  '11:00 — 옆자리 캠퍼: "비 좀 오네요. 근데 갈 정도는 아니죠?"'],
+  [12*60,  '12:00 — 물이 탁해지기 시작했다. 상류에서 흙이 씻겨 내려온다는 뜻.'],
+  [13*60,  '13:00 — 수위가 눈에 띄게 올랐다. 지금 이 계곡에 있으면 안 된다.'],
+];
+let narrIdx=0;
+
+function tick(){
+  if(G.over) return;
+  G.nowMin += 1;
+  $('hudClock').textContent = fmt(G.nowMin);
+
+  // 캠핑장 실황 표시 (실데이터)
+  const h = Math.min(23, Math.floor(G.nowMin/60)+ (G.nowMin%60>=30?1:0));
+  const mm = G.pr ? (G.pr.campsite[h]||0) : 0;
+  $('rainNow').textContent = mm.toFixed(1);
+  $('skyNow').textContent = mm<0.5?'흐림, 비 시작 전': mm<3?'비':'거센 비';
+
+  if(narrIdx<NARR.length && G.nowMin>=NARR[narrIdx][0]){
+    $('narrLog').innerHTML = NARR[narrIdx][1]; narrIdx++;
+  }
+
+  // 진행 중 태스크
+  if(G.activeTask){
+    const t=TASKS.find(x=>x.id===G.activeTask), s=state[t.id];
+    s.prog += 1;
+    const el=document.querySelector(`[data-task="${t.id}"] .prog i`);
+    if(el) el.style.width = Math.min(100, s.prog/t.min*100)+'%';
+    if(s.prog>=t.min) finishTask(t);
+  }
+
+  // ETA 표시 갱신
+  if(G.etaKnown>0){
+    const remain = G.floodEtaMin - G.nowMin;
+    const band = [90,40,15,0][Math.min(3,G.etaKnown-1)];
+    const chip=$('hudEta'); chip.classList.remove('unknown');
+    chip.querySelector('b').textContent = remain<=0 ? '도달!' :
+      band>0 ? `약 ${Math.round(remain)}분 (±${band})` : `${Math.round(remain)}분 남음`;
+  }
+
+  // 급류 도달
+  if(G.nowMin >= G.floodEtaMin && !G.evacuating) return gameOver(false);
+}
+
+/* ── 태스크 ── */
+function renderTasks(){
+  $('taskGrid').innerHTML = TASKS.map(t=>`
+    <div class="task" data-task="${t.id}" onclick="G.tapTask('${t.id}')">
+      <span class="t-tag p${t.pr}">${t.tag}</span>
+      <div class="t-name">${t.name}</div>
+      <div class="t-cost">${t.min}분 소요</div>
+      <div class="prog"><i></i></div>
+    </div>`).join('');
+}
+G.tapTask = id=>{
+  if(G.over||G.evacuating) return;
+  const s=state[id];
+  if(s.done){ return; }
+  if(G.activeTask){ toast('한 번에 한 가지만 할 수 있다', true); return; }
+  if(id==='photo'){
+    state[id].done=true;
+    document.querySelector(`[data-task="photo"]`).classList.add('done');
+    addScore(-20,'영상 찍을 시간에 움직였어야 했다'); comboBreak();
+    G.nowMin += 10;
+    return;
+  }
+  G.activeTask=id; s.running=true;
+  document.querySelector(`[data-task="${id}"]`).classList.add('running');
+};
+function finishTask(t){
+  const s=state[t.id]; s.done=true; s.running=false; G.activeTask=null;
+  const el=document.querySelector(`[data-task="${t.id}"]`);
+  el.classList.remove('running'); el.classList.add('done');
+  // 우선순위 채점: 남아 있는 더 높은 우선순위(P낮은 숫자) 태스크가 있는데 낮은 걸 먼저 하면 콤보 브레이크
+  const higherLeft = TASKS.some(x=>!state[x.id].done && x.pr<t.pr && x.id!=='photo');
+  if(higherLeft){ comboBreak(); addScore(4,`${t.name} (우선순위는 아쉽다)`); }
+  else { addScore(t.pr===1?15:10, t.name); comboUp(); }
+}
+
+/* ── 레이더 ── */
+G.openRadar = ()=>{
+  if(G.over||G.evacuating) return;
+  G.nowMin += 5;                                  // 확인 비용
+  G.etaKnown++; G.radarChecks.push(G.nowMin);
+  $('radarOverlay').classList.add('show');
+  const maxH = Math.floor(G.nowMin/60);
+  const sl=$('frameSlider'); sl.min=6; sl.max=maxH; sl.value=maxH;
+  drawRadar(maxH); updateGauge(maxH);
+  sl.oninput = ()=>{ drawRadar(+sl.value); updateGauge(+sl.value); };
+  // ETA 노트
+  const remain=Math.round(G.floodEtaMin-G.nowMin);
+  const band=[90,40,15,0][Math.min(3,G.etaKnown-1)];
+  const note=$('etaNote'); note.classList.add('show');
+  note.innerHTML = `상류 발달 추세로 계산한 <b>급류 도달까지 약 ${remain}분${band?` (오차 ±${band}분)`:''}</b>.
+    한 번 더 확인하면 예측 폭이 좁아진다.`;
+  if(!G.quizDone) $('radarQuiz').classList.add('show');
+};
+G.closeRadar = ()=> $('radarOverlay').classList.remove('show');
+
+function echoColor(mm){
+  if(mm<0.2) return null;
+  if(mm<1) return '#a5d8ff'; if(mm<3) return '#4dabf7';
+  if(mm<6) return '#fab005'; if(mm<10) return '#f76707'; return '#e03131';
+}
+function drawRadar(h){
+  const cv=$('radarMap'), ctx=cv.getContext('2d'), W=cv.width, H=cv.height;
+  ctx.fillStyle='#0a1322'; ctx.fillRect(0,0,W,H);
+  // 계곡 모식도: 상류(위) → 캠핑장(아래)
+  ctx.strokeStyle='#1d3a5f'; ctx.lineWidth=26; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(W*0.72,40); ctx.quadraticCurveTo(W*0.55,H*0.45,W*0.38,H-60); ctx.stroke();
+  ctx.lineWidth=1; ctx.font='12px sans-serif';
+  const pos={ upstream1:[W*0.74,70], upstream2:[W*0.60,H*0.38], campsite:[W*0.38,H-70], regional:[W*0.14,H*0.62] };
+  $('frameLabel').textContent = String(h).padStart(2,'0')+':00';
+  G.caseData.points.forEach(p=>{
+    const [x,y]=pos[p.id]; const mm=G.pr[p.id][h]||0; const col=echoColor(mm);
+    if(col){
+      const r=10+Math.min(38,mm*3.2);
+      const grad=ctx.createRadialGradient(x,y,2,x,y,r);
+      grad.addColorStop(0,col); grad.addColorStop(1,'transparent');
+      ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+    }
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(x,y,3,0,7); ctx.fill();
+    ctx.fillStyle= p.id==='campsite' ? '#ffcf4d' : '#c3d0e2';
+    ctx.fillText((p.id==='campsite'?'★ ':'')+p.name+`  ${mm.toFixed(1)}mm/h`, x-60, y+22);
+  });
+  ctx.fillStyle='#8ba0bd'; ctx.fillText('↑ 상류', W*0.80, 30); ctx.fillText('↓ 하류(캠핑장)', W*0.30, H-20);
+}
+function updateGauge(h){
+  let cum=0; for(let i=0;i<=h;i++) cum+=G.upSeries[i]||0;
+  const th=G.caseData.derivedModel.thresholdMm;
+  $('cumLabel').textContent=cum.toFixed(1)+'mm';
+  $('cumFill').style.width=Math.min(100,cum/(th*1.4)*100)+'%';
+  $('thMark').style.left=(1/1.4*100)+'%';
+  $('thLabel').textContent=th;
+}
+
+/* 판독 퀴즈 (1회) */
+document.querySelectorAll('#radarQuiz .choices button').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    if(G.quizDone) return;
+    G.quizDone=true;
+    const ok = btn.dataset.k==='b';
+    btn.classList.add(ok?'ok':'no');
+    const fb=$('quizFb'); fb.classList.add('show');
+    if(ok){ G.quizCorrect=true; addScore(25,'정확한 판독');
+      fb.innerHTML='정답. <b>급류는 내 머리 위 비가 아니라 상류 누적이 만든다.</b> 캠핑장이 멀쩡해도 상류 게이지가 차오르면 떠나야 한다.';
+    } else {
+      addScore(-5,'판독 미스'); G.nowMin+=3;
+      fb.innerHTML='아쉽다. 핵심은 <b>상류의 누적</b>이다. 계곡의 급류는 상류에 온 비가 모여서 내려온다 — 내 위치의 하늘은 알리바이가 되지 않는다.';
+    }
+  });
+});
+
+/* ── 대피 ── */
+G.evacuate = ()=>{
+  if(G.over||G.evacuating) return;
+  if(G.activeTask){ toast('하던 일을 멈추고 출발한다', false); const t=TASKS.find(x=>x.id===G.activeTask); state[t.id].running=false; G.activeTask=null; }
+  G.evacuating=true;
+  const peopleFirst = state.alert.done && state.kids.done;
+  const travel = 12;
+  const arrive = G.nowMin + travel;
+  setTimeout(()=>{
+    clearInterval(G.timerId); G.over=true;
+    const golden = Math.round(G.floodEtaMin - arrive);
+    if(golden<=0) return gameOver(false, arrive);
+    // 점수 계산
+    let stars = golden>=120?3: golden>=45?2:1;
+    if(!peopleFirst && stars>1) stars--;   // 인명 태스크 없이 혼자 떠나면 감점
+    addScore(Math.min(100,golden), '골든타임 확보');
+    showResult({golden, arrive, stars, peopleFirst});
+  }, 1200);
+  toast('고지대로 이동 중…');
+};
+
+function gameOver(survived, arrive){
+  clearInterval(G.timerId); G.over=true;
+  show('result');
+  $('resultCard').innerHTML = `
+    <div class="stars" style="filter:grayscale(1)">★☆☆</div>
+    <div class="big-time" style="color:var(--warn)">골든타임 0분<small>급류가 먼저 도착했다 — ${fmt(G.floodEtaMin)}</small></div>
+    <p style="margin-top:12px;font-size:14.5px;text-align:center">
+      괜찮다. 이 게임의 실패는 시계가 되감길 뿐이다.<br>
+      현실에서 되감기지 않는 것이 바로 이 시간이다. <b>다시 그 아침으로 돌아가 레이더를 먼저 열어보자.</b></p>`;
+  buildTimeline(null);
+}
+
+function showResult({golden, arrive, stars, peopleFirst}){
+  show('result');
+  $('resultCard').innerHTML = `
+    <div class="stars">${'★'.repeat(stars)}${'☆'.repeat(3-stars)}</div>
+    <div class="big-time">골든타임 ${golden}분<small>급류 도달 ${fmt(G.floodEtaMin)} · 대피 완료 ${fmt(arrive)}</small></div>
+    <p style="margin-top:12px;font-size:14.5px;text-align:center">
+      ${peopleFirst?'사람 먼저, 그다음 물건 — 행동요령 그대로였다.':'다음엔 일행에게 알리고 아이·노약자부터. 행동요령의 첫 줄이다.'}<br>
+      최종 점수 <b style="color:var(--gold)">${G.score}점</b> · 레이더 확인 ${G.radarChecks.length}회</p>`;
+  buildTimeline(arrive);
+}
+
+function buildTimeline(arrive){
+  const rows=[];
+  rows.push(['08:00','상류에 비가 시작되다 — 데이터가 말을 걸기 시작한 시각','']);
+  const crossMin = G.floodEtaMin - G.caseData.derivedModel.lagMinutes;
+  rows.push([fmt(crossMin),'상류 누적 강수가 급류 임계선을 넘다','bad']);
+  rows.push([fmt(G.floodEtaMin),'급류 캠핑장 도달 (파생 모델)','bad']);
+  if(G.radarChecks.length) rows.push([fmt(G.radarChecks[0]),'당신이 처음 레이더를 연 시각','you']);
+  else rows.push(['—','당신은 레이더를 열지 않았다','you']);
+  if(arrive) rows.push([fmt(arrive),'당신의 대피 완료','you']);
+  $('timeline').innerHTML = rows.map(([t,txt,cls])=>`<div class="tl-row ${cls}"><span class="tl-t">${t}</span><span>${txt}</span></div>`).join('');
+  const first = G.radarChecks.length? G.radarChecks[0] : null;
+  $('revealBox').innerHTML = first
+    ? `<b>반전:</b> 데이터는 08:00부터 위험을 말하고 있었다. 당신이 들은 것은 ${fmt(first)} — 그 차이가 골든타임의 크기를 정했다. 현실에서도 같다: <b>재난 정보를 기다리지 말고, 데이터를 먼저 보러 가라.</b>`
+    : `<b>반전:</b> 데이터는 08:00부터 위험을 말하고 있었다. 하지만 아무도 열어보지 않은 상황판은 없는 것과 같다. <b>레이더 버튼 한 번이 골든타임의 전부였다.</b>`;
+}
+
+G.showEnding = ()=> show('ending');
+</script>
+</body>
+</html>
