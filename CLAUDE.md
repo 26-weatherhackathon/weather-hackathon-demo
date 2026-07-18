@@ -8,13 +8,6 @@
 대상·활용 데이터·학습 목표·평가 설계·개발 일정이 이 문서에 확정되어 있다 —
 코드/콘텐츠가 이 계획과 어긋나면 계획을 먼저 갱신하고 작업한다.
 
-> 레포에는 이전 컨셉 「예보관 의사결정 체험」의 계획 문서(`docs/forecaster-app-plan.md`·
-> `docs/forecaster-build-spec.md`·`docs/forecaster-data-utilization.md`·
-> `docs/forecaster-ux-spec.md`)가 참고용으로 남아 있다. 실제 스캐폴드 코드
-> (`forecaster-experience/`, 루트 Next.js 앱, `app/`)는 골든타임 개발을 위해
-> 정리되었다. 신규 작업은 골든타임(`docs/PLAN.md`) 기준으로 진행하고, 위 문서
-> 내용을 참고할 때는 `docs/PLAN.md`와 상충하지 않는지 먼저 확인한다.
-
 ## 학습 대상 및 목표
 
 콘텐츠를 추가·수정할 때는 아래 학습 대상·목표에 부합하는지 확인한다.
