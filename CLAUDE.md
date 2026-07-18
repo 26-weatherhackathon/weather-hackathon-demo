@@ -1,5 +1,3 @@
-@AGENTS.md
-
 # 프로젝트 개요
 
 기상·기후 AI 해커톤 2026 출품작. 대표 데모는 「골든타임: 물이 차오르기 전에」 —
@@ -10,12 +8,12 @@
 대상·활용 데이터·학습 목표·평가 설계·개발 일정이 이 문서에 확정되어 있다 —
 코드/콘텐츠가 이 계획과 어긋나면 계획을 먼저 갱신하고 작업한다.
 
-> 레포에는 이전 컨셉인 「예보관 의사결정 체험」(`forecaster-experience/`, 관련
-> 문서 `docs/forecaster-app-plan.md`·`docs/forecaster-build-spec.md`·
-> `docs/forecaster-data-utilization.md`·`docs/forecaster-ux-spec.md`)의
-> 스캐폴드도 남아 있다. 신규 작업은 골든타임(`docs/PLAN.md`) 기준으로 진행하고,
-> forecaster-experience 문서 내용을 참고할 때는 `docs/PLAN.md`와 상충하지
-> 않는지 먼저 확인한다.
+> 레포에는 이전 컨셉 「예보관 의사결정 체험」의 계획 문서(`docs/forecaster-app-plan.md`·
+> `docs/forecaster-build-spec.md`·`docs/forecaster-data-utilization.md`·
+> `docs/forecaster-ux-spec.md`)가 참고용으로 남아 있다. 실제 스캐폴드 코드
+> (`forecaster-experience/`, 루트 Next.js 앱, `app/`)는 골든타임 개발을 위해
+> 정리되었다. 신규 작업은 골든타임(`docs/PLAN.md`) 기준으로 진행하고, 위 문서
+> 내용을 참고할 때는 `docs/PLAN.md`와 상충하지 않는지 먼저 확인한다.
 
 ## 학습 대상 및 목표
 
@@ -65,17 +63,17 @@
 - `.env*` 파일은 커밋하지 않는다(레포 전역 `.gitignore`에 이미 등록됨). 새 하위
   프로젝트를 추가할 때도 동일하게 적용한다.
 - API 키(기상자료개방포털·API허브·공공데이터포털 인증키, `ANTHROPIC_API_KEY` 등 —
-  정확한 변수명은 각 프로젝트의 `.env.example` 기준. 예: forecaster-experience의
-  `KMA_API_KEY`·`KMA_HUB_AUTHKEY`)는 서버리스 함수(`api/*.js`)에서만 참조한다.
-  클라이언트 번들·정적 파일·콘솔 로그에 키가 노출되지 않는지 커밋 전 확인한다.
-- 데이터 수집 스크립트(예: `forecaster-experience/scripts/`)는 로컬에서만 키를
-  사용하고, 커밋되는 것은 수집 결과(정적 JSON/이미지)뿐이어야 한다.
+  정확한 변수명은 각 프로젝트의 `.env.example` 기준)는 서버리스 함수에서만
+  참조한다. 클라이언트 번들·정적 파일·콘솔 로그에 키가 노출되지 않는지 커밋 전
+  확인한다.
+- 데이터 수집 스크립트는 로컬에서만 키를 사용하고, 커밋되는 것은 수집 결과
+  (정적 JSON/이미지)뿐이어야 한다.
 - 새 `.env.example`을 추가할 때는 키 이름만 적고 실제 값은 절대 채우지 않는다.
 - 커밋하기 전 `git diff`/`git status`로 우발적인 키·시크릿 포함 여부를 확인한다.
 
 ## README 작성 규칙
 
-각 하위 프로젝트(`forecaster-experience/` 등)의 `README.md`에는 최소한 아래 항목을
+각 하위 프로젝트(골든타임 구현 디렉터리 등)의 `README.md`에는 최소한 아래 항목을
 포함한다.
 
 1. **실행 방법** — 로컬 개발 서버 실행 커맨드(`npm install`, `npm run dev` 등)
