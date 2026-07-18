@@ -7,6 +7,11 @@
 관련 문서: `docs/forecaster-app-plan.md`, `docs/forecaster-build-spec.md`,
 `docs/forecaster-data-utilization.md`, `docs/forecaster-ux-spec.md`.
 
+**`docs/PLAN.md`(개발계획서, 공고 양식2 대응)를 항상 우선 참고한다.** 대표 데모
+「골든타임: 물이 차오르기 전에」의 개발 목적·대상·학습 목표·평가 설계·개발 일정이
+이 문서에 확정되어 있다 — 코드/콘텐츠가 이 계획과 어긋나면 계획을 먼저 갱신하고
+작업한다.
+
 ## 학습 대상 및 목표
 
 콘텐츠를 추가·수정할 때는 아래 학습 대상·목표에 부합하는지 확인한다.
