@@ -364,9 +364,9 @@ export default function IsometricMap({
         const flooded = depth >= FLOOD_THRESHOLD;
         const sprite = big ? schoolImg : houseImg;
         if (sprite.complete && sprite.naturalWidth > 0) {
-          const w = big ? 52 : 38;
+          const w = big ? 32 : 23;
           const h = (w * sprite.naturalHeight) / sprite.naturalWidth;
-          ctx.drawImage(sprite, px - w / 2, py - h + 6, w, h);
+          ctx.drawImage(sprite, px - w / 2, py - h + 4, w, h);
         } else {
           ctx.font = big ? "18px sans-serif" : "14px sans-serif";
           ctx.textAlign = "center";

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState } from "react";
 import IsometricMap from "@/components/IsometricMap";
 import LottieBurst from "@/components/LottieBurst";
 import { useFloodGame } from "@/game/useFloodGame";
@@ -31,6 +32,41 @@ function Stars({ n }: { n: number }) {
 
 export default function Home() {
   const g = useFloodGame();
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  // 드래그=지도 이동 / (움직임 없는)클릭=시설 설치
+  const dragRef = useRef({ active: false, x: 0, y: 0, moved: false });
+  const startPan = (e: React.PointerEvent) => {
+    dragRef.current = { active: true, x: e.clientX, y: e.clientY, moved: false };
+  };
+  const movePan = (e: React.PointerEvent) => {
+    const d = dragRef.current;
+    if (!d.active) return;
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    if (!d.moved && Math.abs(dx) + Math.abs(dy) > 4) d.moved = true;
+    if (d.moved) {
+      setPan((p) => ({ x: p.x + dx, y: p.y + dy }));
+      d.x = e.clientX;
+      d.y = e.clientY;
+    }
+  };
+  const endPan = () => {
+    dragRef.current.active = false;
+  };
+  const gateClick = (e: React.MouseEvent) => {
+    if (dragRef.current.moved) {
+      e.stopPropagation();
+      dragRef.current.moved = false;
+    }
+  };
+  const zoomIn = () => setZoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)));
+  const zoomOut = () =>
+    setZoom((z) => {
+      const nz = Math.max(1, +(z - 0.25).toFixed(2));
+      if (nz === 1) setPan({ x: 0, y: 0 });
+      return nz;
+    });
 
   const remain = Math.max(0, Math.ceil(g.duration - g.elapsed));
 
@@ -106,8 +142,24 @@ export default function Home() {
               </span>
             </div>
 
-            <div className="relative flex min-h-0 flex-1 justify-center overflow-hidden">
-              <div className="mx-auto h-full" style={{ aspectRatio: "860 / 620" }}>
+            <div
+              className={`relative flex min-h-0 flex-1 justify-center overflow-hidden ${
+                zoom > 1 ? "cursor-grab active:cursor-grabbing" : ""
+              }`}
+              onPointerDown={startPan}
+              onPointerMove={movePan}
+              onPointerUp={endPan}
+              onPointerLeave={endPan}
+              onClickCapture={gateClick}
+            >
+              <div
+                className="mx-auto h-full"
+                style={{
+                  aspectRatio: "860 / 620",
+                  transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                  transformOrigin: "center center",
+                }}
+              >
                 <IsometricMap
                   grid={g.grid}
                   zone={g.zone}
@@ -117,6 +169,25 @@ export default function Home() {
                   interactive={g.phase !== "result"}
                   onPlace={g.place}
                 />
+              </div>
+
+              {/* 지도 확대/축소 */}
+              <div className="absolute bottom-3 right-3 z-10 flex flex-col overflow-hidden rounded-2xl border-[3px] border-white bg-white shadow-[0_4px_0_rgba(150,190,225,0.5)]">
+                <button
+                  onClick={zoomIn}
+                  aria-label="확대"
+                  className="grid h-11 w-11 place-items-center text-3xl font-bold leading-none text-slate-500 transition hover:bg-sky-50 active:bg-sky-100"
+                >
+                  ＋
+                </button>
+                <div className="h-px bg-slate-100" />
+                <button
+                  onClick={zoomOut}
+                  aria-label="축소"
+                  className="grid h-11 w-11 place-items-center text-3xl font-bold leading-none text-slate-500 transition hover:bg-sky-50 active:bg-sky-100"
+                >
+                  －
+                </button>
               </div>
 
               {/* 반응하는 기상이 가이드 */}
@@ -194,7 +265,7 @@ export default function Home() {
           {/* 우측 컨트롤 */}
           <aside className="flex w-[380px] shrink-0 flex-col gap-3">
             {/* 수위 게이지 */}
-            <div className={`shrink-0 px-5 py-4 ${PANEL}`}>
+            <div className={`shrink-0 px-5 py-3 ${PANEL}`}>
               <div className="mb-2 flex justify-between text-sm font-bold text-slate-500">
                 <span>현재 수위 {g.level.toFixed(1)}m</span>
                 <span>마을 고도 {g.villageElev.min}~{g.villageElev.max}m</span>
