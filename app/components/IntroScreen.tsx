@@ -13,7 +13,7 @@ export default function IntroScreen({ onStart }: { onStart: () => void }) {
         <br />
         우리 마을 여기저기가 물에 잠길 위험에 처했어요.
         <br />
-        지형도에서 마을 네 곳을 하나씩 살펴보고, 어떻게 지킬지 결정해 주세요.
+        지형도에서 위험한 마을 세 곳을 하나씩 살펴보고, 어떻게 지킬지 결정해 주세요.
       </p>
       <button
         type="button"

@@ -14,8 +14,8 @@ import {
 } from "@/lib/dem";
 import SignalIcon from "./SignalIcon";
 
-const TILE_W = 56; // 다이아몬드 타일 가로 폭(px)
-const TILE_H = 28; // 다이아몬드 타일 세로 폭(px)
+const TILE_W = 84; // 다이아몬드 타일 가로 폭(px) — 격자를 줄인 만큼 타일을 키워 잘 보이게 한다
+const TILE_H = 42; // 다이아몬드 타일 세로 폭(px)
 const HEIGHT_SCALE = 0.6; // 고도 1m당 타일을 들어올리는 픽셀 수
 
 type Props = {

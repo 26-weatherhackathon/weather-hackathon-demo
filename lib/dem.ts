@@ -5,24 +5,25 @@
 
 export type Grid = number[][]; // elevation[row][col], 단위 m
 
-export const GRID_ROWS = 9;
-export const GRID_COLS = 9;
+// 초등 학습자가 한눈에 보기 쉽도록 격자를 작게 유지한다(위험 지점 3곳 중심).
+export const GRID_ROWS = 6;
+export const GRID_COLS = 6;
 
 /** 국토지리정보원 5m DEM을 GeoTIFF→JSON 변환했다고 가정한 목업 격자.
- *  좌상단 두 개의 고지대(산)와 그 사이를 굽이쳐 흐르는 저지대(하천)를 형성한다. */
+ *  왼쪽 위·오른쪽 아래 두 개의 고지대(산)와 그 사이를 굽이쳐 흐르는 저지대(하천)를 형성한다. */
 export function createMockDem(): Grid {
   const grid: Grid = [];
   for (let row = 0; row < GRID_ROWS; row++) {
     const line: number[] = [];
     for (let col = 0; col < GRID_COLS; col++) {
-      const distHill1 = Math.hypot(row - 1.5, col - 1.5);
-      const distHill2 = Math.hypot(row - 7, col - 7);
-      const hill1 = Math.max(0, 120 - distHill1 * 22);
-      const hill2 = Math.max(0, 90 - distHill2 * 18);
+      const distHill1 = Math.hypot(row - 1, col - 1);
+      const distHill2 = Math.hypot(row - 4.5, col - 4.5);
+      const hill1 = Math.max(0, 120 - distHill1 * 30);
+      const hill2 = Math.max(0, 90 - distHill2 * 26);
 
-      const riverCol = 4.5 + 2 * Math.sin(row * 0.7);
+      const riverCol = 3 + 1.4 * Math.sin(row * 1.0);
       const distRiver = Math.abs(col - riverCol);
-      const riverDip = Math.max(0, 26 - distRiver * 11);
+      const riverDip = Math.max(0, 26 - distRiver * 15);
 
       const elevation = 18 + hill1 * 0.55 + hill2 * 0.45 - riverDip;
       line.push(Math.round(Math.max(2, Math.min(140, elevation))));
@@ -32,12 +33,20 @@ export function createMockDem(): Grid {
   return grid;
 }
 
-/** 고도 → DEM 그래디언트 색상. PLAN.md 5.2.1 (1) 표 그대로 적용. */
+/** PLAN.md 5.2.1 (1) 표의 DEM 그래디언트 색상. 범례(Legend)에서도 그대로 재사용한다. */
+export const TERRAIN_COLORS = {
+  high: { color: "#8D6E4A", label: "산·고지대 (100m 이상)" },
+  slope: { color: "#A9C97E", label: "경사지 (30~100m)" },
+  flat: { color: "#6FA96F", label: "평지·마을 (10~30m)" },
+  low: { color: "#4A90D9", label: "저지대·물 (10m 미만)" },
+} as const;
+
+/** 고도 → DEM 그래디언트 색상. */
 export function elevationToColor(elevation: number): string {
-  if (elevation >= 100) return "#8D6E4A"; // 산·고지대
-  if (elevation >= 30) return "#A9C97E"; // 완만한 경사지
-  if (elevation >= 10) return "#6FA96F"; // 평지·마을
-  return "#4A90D9"; // 저지대·계곡·물
+  if (elevation >= 100) return TERRAIN_COLORS.high.color;
+  if (elevation >= 30) return TERRAIN_COLORS.slope.color;
+  if (elevation >= 10) return TERRAIN_COLORS.flat.color;
+  return TERRAIN_COLORS.low.color;
 }
 
 export type FlowDir = { dRow: number; dCol: number } | null;
@@ -110,10 +119,9 @@ export function findHighestCell(grid: Grid): { row: number; col: number; elevati
 export type VillageSpot = { row: number; col: number; label: string };
 
 export const VILLAGE_SPOTS: VillageSpot[] = [
-  { row: 2, col: 7, label: "냇가 마을" },
-  { row: 7, col: 2, label: "골짜기 마을" },
-  { row: 6, col: 3, label: "논 마을" },
-  { row: 4, col: 4, label: "언덕 마을" },
+  { row: 1, col: 5, label: "냇가 마을" },
+  { row: 5, col: 1, label: "골짜기 마을" },
+  { row: 4, col: 2, label: "논 마을" },
 ];
 
 export type Outcome = { signal: "safe" | "warning" | "danger"; text: string };

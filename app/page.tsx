@@ -5,6 +5,7 @@ import TerrainView from "./components/TerrainView";
 import SignalIcon from "./components/SignalIcon";
 import IntroScreen from "./components/IntroScreen";
 import SummaryScreen from "./components/SummaryScreen";
+import Legend from "./components/Legend";
 import {
   createMockDem,
   computeD8Flow,
@@ -130,6 +131,8 @@ export default function Home() {
         onTileClick={handleTileClick}
       />
 
+      <Legend />
+
       {selected && (
         <div className="flex flex-col items-center gap-3 rounded-2xl bg-white p-4 shadow ring-1 ring-neutral-200">
           <p className="text-base font-semibold">이 지역을 어떻게 지킬까요?</p>
@@ -172,7 +175,6 @@ export default function Home() {
       )}
 
       <p className="max-w-md text-center text-xs text-neutral-500">
-        갈색·연두는 높은 곳, 초록·파랑은 낮은 곳이에요. 낮은 곳(파랑)이 먼저 물에 잠겨요.
         깜빡이는 표시가 있는 마을을 눌러 지켜보세요.
       </p>
 
