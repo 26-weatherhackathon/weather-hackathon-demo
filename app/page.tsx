@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import TerrainView from "./components/TerrainView";
 import SignalIcon from "./components/SignalIcon";
+import IntroScreen from "./components/IntroScreen";
+import SummaryScreen from "./components/SummaryScreen";
 import {
   createMockDem,
   computeD8Flow,
@@ -10,6 +12,7 @@ import {
   applyProtectionElevation,
   isFlooded,
   describeOutcome,
+  VILLAGE_SPOTS,
   type Protection,
 } from "@/lib/dem";
 
@@ -26,6 +29,8 @@ export default function Home() {
   const grid = useMemo(() => createMockDem(), []);
   const flow = useMemo(() => computeD8Flow(grid), [grid]);
   const highest = useMemo(() => findHighestCell(grid), [grid]);
+
+  const [gameStarted, setGameStarted] = useState(false);
 
   const [showTerrain, setShowTerrain] = useState(true);
   const [showFlow, setShowFlow] = useState(false);
@@ -61,6 +66,13 @@ export default function Home() {
     setLastOutcome(null);
   }
 
+  function handleRestart() {
+    setProtections({});
+    setSelected(null);
+    setLastOutcome(null);
+    setGameStarted(false);
+  }
+
   const outcome = useMemo(() => {
     if (!lastOutcome) return null;
     const [row, col] = lastOutcome.key.split("-").map(Number);
@@ -69,12 +81,32 @@ export default function Home() {
     return describeOutcome(lastOutcome.protection, flooded);
   }, [lastOutcome, grid]);
 
+  const allDecided = VILLAGE_SPOTS.every(
+    (spot) => protections[`${spot.row}-${spot.col}`] !== undefined
+  );
+
+  const summaryResults = useMemo(() => {
+    if (!allDecided) return [];
+    return VILLAGE_SPOTS.map((spot) => {
+      const key = `${spot.row}-${spot.col}`;
+      const protection = protections[key];
+      const effective = applyProtectionElevation(grid[spot.row][spot.col], protection);
+      const flooded = isFlooded(effective, RAINFALL_MM);
+      const choiceLabel = CHOICES.find((c) => c.protection === protection)?.label ?? "";
+      return { label: spot.label, choiceLabel, outcome: describeOutcome(protection, flooded) };
+    });
+  }, [allDecided, protections, grid]);
+
+  if (!gameStarted) {
+    return <IntroScreen onStart={() => setGameStarted(true)} />;
+  }
+
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center gap-6 px-4 py-10">
       <header className="text-center">
         <h1 className="text-2xl font-bold">우리 마을 홍수 방재 게임</h1>
         <p className="mt-2 text-sm text-neutral-600">
-          버튼을 눌러 우리 마을 지형을 살펴보고, 지역을 눌러 마을을 지켜보세요.
+          버튼을 눌러 우리 마을 지형을 살펴보고, 깜빡이는 마을을 눌러 지켜보세요.
         </p>
       </header>
 
@@ -88,6 +120,7 @@ export default function Home() {
         grid={grid}
         flow={flow}
         highest={highest}
+        villageSpots={VILLAGE_SPOTS}
         showTerrain={showTerrain}
         showFlow={showFlow}
         showRain={showRain}
@@ -122,7 +155,7 @@ export default function Home() {
         </div>
       )}
 
-      {outcome && (
+      {outcome && !allDecided && (
         <div className="flex flex-col items-center gap-2 rounded-2xl bg-white p-4 shadow ring-1 ring-neutral-200">
           <div className="flex items-center gap-2">
             <SignalIcon signal={outcome.signal} size={20} />
@@ -140,8 +173,10 @@ export default function Home() {
 
       <p className="max-w-md text-center text-xs text-neutral-500">
         갈색·연두는 높은 곳, 초록·파랑은 낮은 곳이에요. 낮은 곳(파랑)이 먼저 물에 잠겨요.
-        지형도에서 지역을 눌러 마을을 지켜보세요.
+        깜빡이는 표시가 있는 마을을 눌러 지켜보세요.
       </p>
+
+      {allDecided && <SummaryScreen results={summaryResults} onRestart={handleRestart} />}
     </main>
   );
 }

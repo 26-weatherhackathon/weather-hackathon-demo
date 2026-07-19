@@ -105,6 +105,17 @@ export function findHighestCell(grid: Grid): { row: number; col: number; elevati
   return best;
 }
 
+/** 학습자가 판단해야 할 마을 지점들. 81칸 전체가 아니라 이 지점들만 선택 대상이며,
+ *  모두 선택을 마치면(6.2장 STEP 4) 최종 결과 요약을 보여준다. */
+export type VillageSpot = { row: number; col: number; label: string };
+
+export const VILLAGE_SPOTS: VillageSpot[] = [
+  { row: 2, col: 7, label: "냇가 마을" },
+  { row: 7, col: 2, label: "골짜기 마을" },
+  { row: 6, col: 3, label: "논 마을" },
+  { row: 4, col: 4, label: "언덕 마을" },
+];
+
 export type Outcome = { signal: "safe" | "warning" | "danger"; text: string };
 
 /** 선택 결과를 초등 눈높이 문구로 변환. PLAN.md 5.2.1 (2) 신호색 체계에 맞춘다. */

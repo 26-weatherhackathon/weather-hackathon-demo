@@ -8,6 +8,7 @@ import {
   type Grid,
   type FlowDir,
   type Protection,
+  type VillageSpot,
   GRID_ROWS,
   GRID_COLS,
 } from "@/lib/dem";
@@ -21,6 +22,7 @@ type Props = {
   grid: Grid;
   flow: FlowDir[][];
   highest: { row: number; col: number };
+  villageSpots: VillageSpot[];
   showTerrain: boolean;
   showFlow: boolean;
   showRain: boolean;
@@ -40,6 +42,7 @@ export default function TerrainView({
   grid,
   flow,
   highest,
+  villageSpots,
   showTerrain,
   showFlow,
   showRain,
@@ -48,6 +51,11 @@ export default function TerrainView({
   selectedKey,
   onTileClick,
 }: Props) {
+  const spotMap = useMemo(
+    () => new Map(villageSpots.map((spot) => [`${spot.row}-${spot.col}`, spot])),
+    [villageSpots]
+  );
+
   const floodedCount = useMemo(() => {
     if (!showRain) return 0;
     let count = 0;
@@ -93,6 +101,7 @@ export default function TerrainView({
             const flooded = showRain && isFlooded(effectiveElevation, rainfallMm);
             const dir = flow[row][col];
             const isSelected = selectedKey === key;
+            const spot = spotMap.get(key);
 
             let signal: "safe" | "warning" | "danger" | null = null;
             if (protection === "shelter") signal = flooded ? "warning" : "safe";
@@ -104,9 +113,16 @@ export default function TerrainView({
               <button
                 type="button"
                 key={key}
-                onClick={() => onTileClick(row, col)}
-                aria-label={`(${row}, ${col}) 지역, 고도 ${elevation}m${flooded ? ", 침수됨" : ""}`}
-                className="absolute cursor-pointer"
+                onClick={() => spot && onTileClick(row, col)}
+                disabled={!spot}
+                aria-label={
+                  spot
+                    ? `${spot.label} 지역, 고도 ${elevation}m${flooded ? ", 침수됨" : ""}`
+                    : undefined
+                }
+                aria-hidden={!spot}
+                tabIndex={spot ? 0 : -1}
+                className={`absolute ${spot ? "cursor-pointer" : "cursor-default"}`}
                 style={{
                   left,
                   top,
@@ -163,6 +179,17 @@ export default function TerrainView({
                 {signal && (
                   <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[130%]">
                     <SignalIcon signal={signal} />
+                  </span>
+                )}
+                {spot && protection === "none" && (
+                  <span className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-[170%] flex-col items-center gap-1">
+                    <span className="relative flex h-3 w-3">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                      <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500" />
+                    </span>
+                    <span className="whitespace-nowrap rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
+                      {spot.label}
+                    </span>
                   </span>
                 )}
               </button>
