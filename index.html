@@ -10,31 +10,32 @@
   body{font-family:"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
     background:linear-gradient(#dff2ff,#f5fbff);min-height:100vh;
     display:flex;align-items:center;justify-content:center;padding:20px;}
-  .card{position:relative;width:1040px;height:820px;border-radius:36px;
+  .card{position:relative;width:1040px;height:720px;border-radius:36px;
     background:linear-gradient(#eaf7ff,#cfeafc);overflow:hidden;text-align:center;
     box-shadow:0 24px 70px rgba(60,120,180,.3);}
-  .hud{position:absolute;top:0;left:0;right:0;z-index:8;padding:20px 30px;
+  .hud{position:absolute;top:0;left:0;right:0;z-index:8;padding:18px 28px;
     display:flex;align-items:center;gap:10px;}
-  .badge{font-weight:800;font-size:19px;color:#fff;padding:10px 22px;border-radius:999px;
+  .badge{font-weight:800;font-size:18px;color:#fff;padding:9px 20px;border-radius:999px;
     background:var(--safe);transition:background .3s;}
-  .rain-amt{margin-left:auto;font-weight:800;color:#2b6fb0;font-size:18px;}
-  .speech{position:absolute;left:50%;top:50px;transform:translateX(-50%);z-index:8;
-    background:#fff;color:#2b4a63;font-weight:700;font-size:18px;padding:12px 24px;
-    border-radius:22px;box-shadow:0 6px 16px rgba(40,90,140,.2);white-space:nowrap;max-width:92%;}
-  #lottieSpark{position:absolute;left:50%;top:110px;width:520px;height:520px;
+  .rain-amt{margin-left:auto;font-weight:800;color:#2b6fb0;font-size:17px;}
+  .dem-tag{position:absolute;left:28px;top:64px;z-index:6;font-size:12px;color:#5b7a93;font-weight:600;}
+  .speech{position:absolute;left:50%;top:52px;transform:translateX(-50%);z-index:8;
+    background:#fff;color:#2b4a63;font-weight:700;font-size:17px;padding:11px 22px;
+    border-radius:20px;box-shadow:0 6px 16px rgba(40,90,140,.2);white-space:nowrap;max-width:92%;}
+  #lottieSpark{position:absolute;left:50%;top:120px;width:420px;height:420px;
     transform:translateX(-50%);z-index:7;pointer-events:none;opacity:0;transition:opacity .2s;}
-  canvas{position:absolute;top:72px;left:50%;transform:translateX(-50%);z-index:4;cursor:pointer;}
-  .legend{position:absolute;left:30px;bottom:126px;z-index:6;font-size:14px;color:#33566e;
-    background:rgba(255,255,255,.78);padding:12px 14px;border-radius:16px;text-align:left;line-height:1.9;}
-  .sw{display:inline-block;width:15px;height:15px;border-radius:4px;vertical-align:-2px;margin-right:7px;}
-  .hint{position:absolute;left:0;right:0;bottom:104px;z-index:6;font-size:15px;color:#3a6a99;font-weight:700;}
-  .controls{position:absolute;left:0;right:0;bottom:0;z-index:8;padding:22px;
+  canvas{position:absolute;top:74px;left:50%;transform:translateX(-50%);z-index:4;cursor:pointer;}
+  .legend{position:absolute;left:28px;bottom:120px;z-index:6;font-size:13px;color:#33566e;
+    background:rgba(255,255,255,.78);padding:10px 12px;border-radius:14px;text-align:left;line-height:1.85;}
+  .sw{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px;}
+  .hint{position:absolute;left:0;right:0;bottom:100px;z-index:6;font-size:14px;color:#3a6a99;font-weight:700;}
+  .controls{position:absolute;left:0;right:0;bottom:0;z-index:8;padding:20px;
     display:flex;flex-direction:row;justify-content:center;gap:18px;}
-  button{font-family:inherit;font-weight:800;font-size:20px;color:#fff;border:none;
-    padding:18px;border-radius:22px;cursor:pointer;box-shadow:0 6px 0 rgba(0,0,0,.12);transition:transform .08s;}
+  button{font-family:inherit;font-weight:800;font-size:19px;color:#fff;border:none;
+    padding:17px;border-radius:22px;cursor:pointer;box-shadow:0 6px 0 rgba(0,0,0,.12);transition:transform .08s;}
   button:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,.12);}
-  .btn-rain{background:#4A90D9;width:360px;}
-  .btn-reset{background:#9aa7b2;width:200px;font-size:17px;}
+  .btn-rain{background:#4A90D9;width:340px;}
+  .btn-reset{background:#9aa7b2;width:190px;font-size:16px;}
 </style>
 </head>
 <body>
@@ -43,8 +44,9 @@
       <div class="badge" id="badge">안전</div>
       <div class="rain-amt" id="rainAmt">맑음</div>
     </div>
+    <div class="dem-tag">지형: 동작구 실제 표고 데이터(Copernicus GLO-30 DEM)</div>
     <div class="speech" id="speech">기상이를 안전한 곳으로 옮겨요. 칸을 눌러보세요!</div>
-    <canvas id="cv" width="860" height="660"></canvas>
+    <canvas id="cv" width="900" height="600"></canvas>
     <div id="lottieSpark"></div>
     <div class="legend">
       <span class="sw" style="background:#8D6E4A"></span>높은 곳<br>
@@ -63,18 +65,22 @@
 <script>
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
-const N=6;
-// 고도 격자 (가상 데이터). 실제 국토지리정보원 DEM으로 교체 예정.
+// 실제 DEM 격자: 동작구 Copernicus GLO-30을 10x10로 샘플링(표고 3~108m → 0~5 레벨)
 const elev=[
- [5,4,4,3,3,2],
- [4,3,3,2,2,1],
- [4,3,2,2,1,1],
- [3,2,2,1,1,0],
- [3,2,1,1,0,0],
- [2,1,1,0,0,0],
+ [1,1,1,1,0,0,1,1,1,1],
+ [1,0,1,1,0,0,0,1,1,1],
+ [1,1,1,1,1,1,0,0,0,0],
+ [1,1,1,2,1,2,2,0,0,0],
+ [1,1,1,2,2,3,2,3,1,1],
+ [1,1,1,2,3,4,5,4,2,1],
+ [1,1,1,2,5,4,5,4,2,1],
+ [1,1,1,1,2,2,3,2,1,1],
+ [1,1,2,2,3,2,2,3,1,1],
+ [2,2,3,3,3,5,4,4,2,2],
 ];
-const TW=130, TH=65, ESTEP=30;         // 데스크톱용 큰 아이소메트릭 타일
-const OX=cv.width/2, OY=300;
+const N=elev.length;
+const TW=78, TH=39, ESTEP=17;
+const OX=cv.width/2, OY=140;
 let targetWater=0, waterVisual=0, raining=false;
 let hero={r:3,c:3}, hopFrom={r:3,c:3}, hopT=1;
 let ripples=[], lastKey='';
@@ -82,16 +88,15 @@ let ripples=[], lastKey='';
 const imgs={};
 ['rain','danger','happy'].forEach(k=>{const i=new Image();i.src='img/'+k+'.png';imgs[k]=i;});
 
-// ---- 마을 오브젝트(생성형 AI 에셋, 받침 없음) ----
+// ---- 마을 오브젝트(받침 없는 에셋), 낮은 곳=마을 / 높은 곳=나무 ----
 const objImgs={};
 ['house','school','hospital','tree'].forEach(k=>{const i=new Image();i.src='img/assets/'+k+'.png';objImgs[k]=i;});
-// 개수 줄이고 간격 벌림. 낮은 곳에 마을 → 먼저 잠김. 높은 가장자리엔 나무.
-const village={'5,1':'house','2,4':'hospital','4,4':'school','0,2':'tree','2,0':'tree','0,4':'tree'};
+const village={'1,5':'house','3,8':'hospital','8,1':'school','5,6':'tree','6,4':'tree','9,5':'tree'};
 
-// ---- 비 (캔버스 파티클) ----
+// ---- 비 ----
 const drops=[];
 for(let i=0;i<130;i++)drops.push({x:Math.random()*cv.width,y:Math.random()*cv.height,
-  len:10+Math.random()*16, spd:9+Math.random()*8, a:0.18+Math.random()*0.28});
+  len:9+Math.random()*14, spd:8+Math.random()*7, a:0.18+Math.random()*0.26});
 
 // ---- Lottie 반짝이 ----
 let sparkleAnim=null; const sparkWrap=$('lottieSpark');
@@ -144,55 +149,50 @@ function surfH(r,c,t){return waterVisual + Math.sin((r+c)*0.85+t/280)*0.05 + Mat
 
 function draw(t){
   ctx.clearRect(0,0,cv.width,cv.height);
-  // 지형 + 마을 오브젝트 + 물 (뒤→앞 한 패스)
   for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
     const e=elev[r][c],p=iso(r,c,e);
     sideWalls(p.x,p.y,e,heightColor(e));
-    diamond(p.x,p.y,heightColor(e),'rgba(255,255,255,.28)');
+    diamond(p.x,p.y,heightColor(e),'rgba(255,255,255,.26)');
     const ob=village[r+','+c];
     if(ob&&objImgs[ob]&&objImgs[ob].complete){const im=objImgs[ob];
-      const tw=TW*1.0, th2=tw*(im.naturalHeight/im.naturalWidth);
-      ctx.drawImage(im,p.x-tw/2,p.y+TH*0.34-th2,tw,th2);}   // 타일 위에 바로 세움(받침 없음)
+      const tw=TW*0.92, th2=tw*(im.naturalHeight/im.naturalWidth);
+      ctx.drawImage(im,p.x-tw/2,p.y+TH*0.32-th2,tw,th2);}
     if(isFlooded(r,c)){const wp=iso(r,c,surfH(r,c,t));
       diamond(wp.x,wp.y,waterColor(waterVisual-e),null);}}
-  // 물가 거품
   ctx.lineCap='round';
   for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
     if(!isFlooded(r,c))continue;
     const p=iso(r,c,surfH(r,c,t));
     const T=[p.x,p.y-TH/2],R=[p.x+TW/2,p.y],B=[p.x,p.y+TH/2],L=[p.x-TW/2,p.y];
-    const foam=(v0,v1,ph)=>{const a=0.45+0.35*Math.sin(t/200+ph);
-      ctx.strokeStyle='rgba(255,255,255,'+a.toFixed(2)+')';ctx.lineWidth=3;
+    const foam=(v0,v1,ph)=>{const a=0.42+0.32*Math.sin(t/200+ph);
+      ctx.strokeStyle='rgba(255,255,255,'+a.toFixed(2)+')';ctx.lineWidth=2.5;
       ctx.beginPath();ctx.moveTo(v0[0],v0[1]);ctx.lineTo(v1[0],v1[1]);ctx.stroke();};
     if(!isFlooded(r,c+1))foam(R,B,p.x*0.05);
     if(!isFlooded(r+1,c))foam(B,L,p.x*0.05+1.4);
     if(!isFlooded(r-1,c))foam(T,R,p.y*0.05+0.7);
     if(!isFlooded(r,c-1))foam(L,T,p.y*0.05+2.1);}
-  // 표면 반짝임
   for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
     if(isFlooded(r,c)){const p=iso(r,c,surfH(r,c,t));
       const a=0.08+0.08*Math.sin(t/240+p.x*0.4+p.y*0.2);
       ctx.strokeStyle='rgba(255,255,255,'+a.toFixed(2)+')';ctx.lineWidth=2;
       ctx.beginPath();ctx.moveTo(p.x-TW*0.28,p.y-TH*0.14);ctx.lineTo(p.x,p.y-TH/2);ctx.stroke();}}
-  // 파문
   ripples.forEach(rp=>{if(rp.t<0)return;ctx.strokeStyle='rgba(255,255,255,'+(1-rp.t)*0.7+')';ctx.lineWidth=2;
-    ctx.beginPath();ctx.ellipse(rp.x,rp.y,rp.t*44,rp.t*22,0,0,7);ctx.stroke();});
-  // 기상이 (원본 1:1 비율 유지)
+    ctx.beginPath();ctx.ellipse(rp.x,rp.y,rp.t*30,rp.t*15,0,0,7);ctx.stroke();});
+  // 기상이
   const hp=iso(hero.r,hero.c,Math.max(elev[hero.r][hero.c],waterVisual));
   let hx=hp.x,hy=hp.y;
   if(hopT<1){const fp=iso(hopFrom.r,hopFrom.c,Math.max(elev[hopFrom.r][hopFrom.c],waterVisual));
-    hx=fp.x+(hp.x-fp.x)*hopT; hy=fp.y+(hp.y-fp.y)*hopT - Math.sin(hopT*Math.PI)*52;}
-  const bob=Math.sin(t/300)*5;
+    hx=fp.x+(hp.x-fp.x)*hopT; hy=fp.y+(hp.y-fp.y)*hopT - Math.sin(hopT*Math.PI)*40;}
+  const bob=Math.sin(t/300)*4;
   const flooded=elev[hero.r][hero.c]<waterVisual-0.02;
   const heroE=elev[hero.r][hero.c];
   const img=flooded?imgs.danger:(heroE>=4?imgs.happy:imgs.rain);
   if(img&&img.complete){
-    const th=140, ratio=(img.naturalWidth&&img.naturalHeight)?img.naturalWidth/img.naturalHeight:1;
-    ctx.drawImage(img, hx-(th*ratio)/2, hy-th+16+(hopT<1?0:bob), th*ratio, th);
+    const th=94, ratio=(img.naturalWidth&&img.naturalHeight)?img.naturalWidth/img.naturalHeight:1;
+    ctx.drawImage(img, hx-(th*ratio)/2, hy-th+12+(hopT<1?0:bob), th*ratio, th);
   }
-  // 비
   if(raining){ctx.strokeStyle='rgba(150,190,225,.55)';
-    drops.forEach(d=>{ctx.globalAlpha=d.a;ctx.lineWidth=1.6;
+    drops.forEach(d=>{ctx.globalAlpha=d.a;ctx.lineWidth=1.5;
       ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(d.x-3,d.y+d.len);ctx.stroke();});
     ctx.globalAlpha=1;}
 }
