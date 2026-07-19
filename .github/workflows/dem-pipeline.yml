@@ -1,0 +1,26 @@
+name: DEM pipeline check
+
+on:
+  pull_request:
+    paths:
+      - "scripts/dem_to_grid.py"
+      - "data/dem/**"
+
+jobs:
+  regenerate-and-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Regenerate grid from committed GeoTIFF
+        run: uv run scripts/dem_to_grid.py
+
+      - name: Fail if committed JSON is stale
+        run: |
+          if ! git diff --exit-code data/dem/dongjak_grid.json; then
+            echo "::error::data/dem/dongjak_grid.json is out of date. Run 'uv run scripts/dem_to_grid.py' and commit the result."
+            exit 1
+          fi
