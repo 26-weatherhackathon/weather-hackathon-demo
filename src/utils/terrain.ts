@@ -83,19 +83,54 @@ export interface ProtectedZone {
   all: TilePos[];
 }
 
+/** 시설 배치가 허용되는 최소 고도(useFloodGame.ts의 배치 규칙과 일치). */
+const MIN_BUILDABLE_ALTITUDE = 6;
+
 /**
  * 지켜야 할 마을(집·학교)의 위치를 반환한다.
- * 실제 DEM에서 가장 낮은 저지대(범람에 가장 먼저 노출되는 곳) 9개 셀을 골라
- * 최저점을 학교, 나머지를 집으로 둔다. 실데이터가 마을 위치를 결정한다.
+ *
+ * 하천 바닥(설치 불가 고도)에는 마을을 두지 않는다. 그 경우 어떤 시설도
+ * 놓을 수 없어 선택과 무관하게 항상 침수되어 게임의 핵심 루프(선택에 따라
+ * 결과가 달라짐)가 무너진다. 대신 "시설을 놓을 수 있는 3x3 인접 구역" 중
+ * 평균 고도가 가장 낮은(가장 침수 위험이 큰) 블록을 찾아 마을로 둔다.
+ * 일부 셀은 방어 없이도 안전하고 일부는 조합이 필요하도록, 실제 지형의
+ * 기복이 자연스럽게 난이도를 만든다.
  */
 export function getProtectedZone(grid: TerrainGrid): ProtectedZone {
-  const cells: TilePos[] = [];
-  for (const row of grid) for (const c of row) cells.push({ x: c.x, y: c.y });
-  cells.sort((a, b) => grid[a.y][a.x].altitude - grid[b.y][b.x].altitude);
+  const N = grid.length;
+  let best: { x: number; y: number; avg: number } | null = null;
 
-  const lowest = cells.slice(0, 9);
-  const school = lowest[0];
-  const houses = lowest.slice(1);
+  for (let y = 0; y <= N - 3; y++) {
+    for (let x = 0; x <= N - 3; x++) {
+      let sum = 0;
+      let buildable = true;
+      for (let dy = 0; dy < 3 && buildable; dy++) {
+        for (let dx = 0; dx < 3; dx++) {
+          const a = grid[y + dy][x + dx].altitude;
+          if (a < MIN_BUILDABLE_ALTITUDE) {
+            buildable = false;
+            break;
+          }
+          sum += a;
+        }
+      }
+      if (!buildable) continue;
+      const avg = sum / 9;
+      if (!best || avg < best.avg) best = { x, y, avg };
+    }
+  }
+
+  // 이론상 전 지역이 설치 불가 고도(<6m)인 경우는 없지만, 방어적으로 좌상단 폴백.
+  const { x: bx, y: by } = best ?? { x: 0, y: 0 };
+
+  const block: TilePos[] = [];
+  for (let dy = 0; dy < 3; dy++) {
+    for (let dx = 0; dx < 3; dx++) block.push({ x: bx + dx, y: by + dy });
+  }
+  block.sort((a, b) => grid[a.y][a.x].altitude - grid[b.y][b.x].altitude);
+
+  const school = block[0]; // 블록 내 최저점(가장 취약) = 학교
+  const houses = block.slice(1);
   return { houses, school, all: [...houses, school] };
 }
 
