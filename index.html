@@ -10,20 +10,21 @@
   body{font-family:"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
     background:linear-gradient(#dff2ff,#f5fbff);min-height:100vh;
     display:flex;align-items:center;justify-content:center;}
-  .card{position:relative;width:440px;height:660px;border-radius:32px;
+  .card{position:relative;width:480px;height:720px;border-radius:32px;
     background:linear-gradient(#eaf7ff,#cfeafc);overflow:hidden;text-align:center;
     box-shadow:0 20px 60px rgba(60,120,180,.28);}
   .hud{position:absolute;top:0;left:0;right:0;z-index:6;padding:16px 18px;
     display:flex;align-items:center;gap:10px;}
-  .badge{font-weight:800;font-size:15px;color:#fff;padding:7px 14px;border-radius:999px;
+  .badge{font-weight:800;font-size:16px;color:#fff;padding:8px 16px;border-radius:999px;
     background:var(--safe);transition:background .3s;}
-  .rain-amt{margin-left:auto;font-weight:800;color:#2b6fb0;font-size:14px;}
-  .speech{position:absolute;left:50%;top:60px;transform:translateX(-50%);z-index:7;
-    background:#fff;color:#2b4a63;font-weight:700;font-size:15px;padding:9px 16px;
-    border-radius:16px;box-shadow:0 6px 16px rgba(40,90,140,.2);white-space:nowrap;}
-  canvas{position:absolute;top:96px;left:50%;transform:translateX(-50%);z-index:4;}
-  .legend{position:absolute;left:18px;bottom:150px;z-index:6;font-size:12px;color:#33566e;
-    background:rgba(255,255,255,.7);padding:8px 10px;border-radius:12px;text-align:left;line-height:1.7;}
+  .rain-amt{margin-left:auto;font-weight:800;color:#2b6fb0;font-size:15px;}
+  .speech{position:absolute;left:50%;top:58px;transform:translateX(-50%);z-index:7;
+    background:#fff;color:#2b4a63;font-weight:700;font-size:15px;padding:10px 18px;
+    border-radius:18px;box-shadow:0 6px 16px rgba(40,90,140,.2);white-space:nowrap;
+    max-width:92%;transition:opacity .2s;}
+  canvas{position:absolute;top:104px;left:50%;transform:translateX(-50%);z-index:4;cursor:pointer;}
+  .legend{position:absolute;left:16px;bottom:150px;z-index:6;font-size:12px;color:#33566e;
+    background:rgba(255,255,255,.72);padding:8px 10px;border-radius:12px;text-align:left;line-height:1.7;}
   .sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:5px;}
   .controls{position:absolute;left:0;right:0;bottom:0;z-index:8;padding:18px;
     display:flex;flex-direction:column;gap:12px;}
@@ -31,8 +32,8 @@
     padding:16px;border-radius:20px;cursor:pointer;box-shadow:0 6px 0 rgba(0,0,0,.12);transition:transform .08s;}
   button:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,.12);}
   .btn-rain{background:#4A90D9;}
-  .btn-evac{background:var(--safe);display:none;}
-  .btn-reset{background:#9aa7b2;font-size:14px;padding:10px;}
+  .btn-reset{background:#9aa7b2;font-size:14px;padding:11px;}
+  .hint{position:absolute;left:0;right:0;bottom:132px;z-index:6;font-size:13px;color:#3a6a99;font-weight:700;}
 </style>
 </head>
 <body>
@@ -41,8 +42,8 @@
       <div class="badge" id="badge">안전</div>
       <div class="rain-amt" id="rainAmt">맑음</div>
     </div>
-    <div class="speech" id="speech">비가 오면 물이 어디로 갈까요?</div>
-    <canvas id="cv" width="404" height="340"></canvas>
+    <div class="speech" id="speech">기상이를 안전한 곳으로 옮겨요. 칸을 눌러보세요!</div>
+    <canvas id="cv" width="460" height="420"></canvas>
     <div class="legend">
       <span class="sw" style="background:#8D6E4A"></span>높은 곳<br>
       <span class="sw" style="background:#A9C97E"></span>언덕<br>
@@ -50,17 +51,17 @@
       <span class="sw" style="background:#7Fb4e6"></span>낮은 곳<br>
       <span class="sw" style="background:#2f6fbf"></span>물에 잠김
     </div>
+    <div class="hint" id="hint">👆 칸을 누르면 기상이가 그곳으로 이동해요</div>
     <div class="controls">
       <button class="btn-rain" id="btnRain">☔ 비가 더 와요</button>
-      <button class="btn-evac" id="btnEvac">⛰️ 기상이를 높은 곳으로!</button>
       <button class="btn-reset" id="btnReset">다시 해보기</button>
     </div>
   </div>
 <script>
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
 const $=id=>document.getElementById(id);
-// 고도 격자 (가상 데이터). 실제 국토지리정보원 DEM으로 교체 예정.
 const N=6;
+// 고도 격자 (가상 데이터). 실제 국토지리정보원 DEM으로 교체 예정.
 const elev=[
  [5,4,4,3,3,2],
  [4,3,3,2,2,1],
@@ -69,90 +70,104 @@ const elev=[
  [3,2,1,1,0,0],
  [2,1,1,0,0,0],
 ];
-const TW=48, TH=24, ESTEP=15;      // 아이소메트릭 타일 크기
-const OX=cv.width/2, OY=70;
-let water=0;                        // 물 높이
-let hero={r:4,c:2, safe:false};     // 기상이 위치(낮은 마을)
+const TW=68, TH=34, ESTEP=20;
+const OX=cv.width/2, OY=96;
+let targetWater=0, waterVisual=0, raining=false;
+let hero={r:3,c:3}, hopFrom={r:3,c:3}, hopT=1;
+let ripples=[], drops=[], lastKey='';
 
 const imgs={};
-['rain','danger','happy'].forEach(k=>{const i=new Image();i.src='img/'+k+'.png';imgs[k]=i;i.onload=draw;});
+['rain','danger','happy'].forEach(k=>{const i=new Image();i.src='img/'+k+'.png';imgs[k]=i;});
 
 function heightColor(e){
   if(e>=4)return'#8D6E4A'; if(e>=3)return'#A9C97E';
   if(e>=2)return'#6FA96F'; return'#7Fb4e6';
 }
 function iso(r,c,e){return {x:OX+(c-r)*TW/2, y:OY+(c+r)*TH/2 - e*ESTEP};}
-function diamond(x,y,fill,stroke){
-  ctx.beginPath();
-  ctx.moveTo(x,y-TH/2); ctx.lineTo(x+TW/2,y); ctx.lineTo(x,y+TH/2); ctx.lineTo(x-TW/2,y);
-  ctx.closePath(); ctx.fillStyle=fill; ctx.fill();
-  if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke();}
-}
-function sideWalls(x,y,e,base){
-  const h=e*ESTEP; if(h<=0)return;
-  ctx.fillStyle=shade(base,-28);
-  ctx.beginPath();ctx.moveTo(x-TW/2,y);ctx.lineTo(x,y+TH/2);ctx.lineTo(x,y+TH/2+h);ctx.lineTo(x-TW/2,y+h);ctx.closePath();ctx.fill();
-  ctx.fillStyle=shade(base,-48);
-  ctx.beginPath();ctx.moveTo(x+TW/2,y);ctx.lineTo(x,y+TH/2);ctx.lineTo(x,y+TH/2+h);ctx.lineTo(x+TW/2,y+h);ctx.closePath();ctx.fill();
-}
-function shade(hex,d){
-  const n=parseInt(hex.slice(1),16);
+function shade(hex,d){const n=parseInt(hex.slice(1),16);
   let r=(n>>16)+d,g=((n>>8)&255)+d,b=(n&255)+d;
   r=Math.max(0,Math.min(255,r));g=Math.max(0,Math.min(255,g));b=Math.max(0,Math.min(255,b));
-  return'rgb('+r+','+g+','+b+')';
-}
-function draw(){
-  ctx.clearRect(0,0,cv.width,cv.height);
-  // 뒤에서 앞으로 (r+c 오름차순)
-  for(let s=0;s<=2*(N-1);s++){
-    for(let r=0;r<N;r++){const c=s-r; if(c<0||c>=N)continue;
-      const e=elev[r][c], p=iso(r,c,e);
-      sideWalls(p.x,p.y,e,heightColor(e));
-      diamond(p.x,p.y,heightColor(e),'rgba(255,255,255,.35)');
-    }
-  }
-  // 물: elev < water 인 칸을 물 표면 높이에 파랑으로 덮음 (낮은 곳부터 잠김)
-  for(let s=0;s<=2*(N-1);s++){
-    for(let r=0;r<N;r++){const c=s-r; if(c<0||c>=N)continue;
-      if(elev[r][c]<water){
-        const p=iso(r,c,water);
-        diamond(p.x,p.y,'rgba(47,111,191,.82)','rgba(255,255,255,.6)');
-      }
-    }
-  }
-  // 기상이
-  const flooded=elev[hero.r][hero.c]<water;
-  const hp=iso(hero.r,hero.c, hero.safe?elev[hero.r][hero.c]:Math.max(elev[hero.r][hero.c],water));
-  const img = hero.safe?imgs.happy : (flooded?imgs.danger:imgs.rain);
-  if(img&&img.complete){const w=58,h=58; ctx.drawImage(img,hp.x-w/2,hp.y-h+6,w,h);}
-}
-function badge(t,c){$('badge').textContent=t;$('badge').style.background=c;}
-function say(t){$('speech').textContent=t;}
+  return'rgb('+r+','+g+','+b+')';}
+function diamond(x,y,fill,stroke){ctx.beginPath();
+  ctx.moveTo(x,y-TH/2);ctx.lineTo(x+TW/2,y);ctx.lineTo(x,y+TH/2);ctx.lineTo(x-TW/2,y);
+  ctx.closePath();ctx.fillStyle=fill;ctx.fill();
+  if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke();}}
+function sideWalls(x,y,e,base){const h=e*ESTEP;if(h<=0)return;
+  ctx.fillStyle=shade(base,-30);
+  ctx.beginPath();ctx.moveTo(x-TW/2,y);ctx.lineTo(x,y+TH/2);ctx.lineTo(x,y+TH/2+h);ctx.lineTo(x-TW/2,y+h);ctx.closePath();ctx.fill();
+  ctx.fillStyle=shade(base,-52);
+  ctx.beginPath();ctx.moveTo(x+TW/2,y);ctx.lineTo(x,y+TH/2);ctx.lineTo(x,y+TH/2+h);ctx.lineTo(x+TW/2,y+h);ctx.closePath();ctx.fill();}
 
-$('btnRain').onclick=()=>{
-  if(hero.safe)return;
-  water++; $('rainAmt').textContent='시간당 빗물 '+(water*18)+'mm';
-  draw();
-  const flooded=elev[hero.r][hero.c]<water;
-  if(flooded){
-    say('앗! 기상이가 있는 낮은 곳이 잠겼어요!'); badge('위험','#E53935');
-    $('btnRain').style.display='none'; $('btnEvac').style.display='block';
-  }else if(water>=1){
-    say('가장 낮은 곳부터 잠기기 시작했어요.'); badge('경고','#FB8C00');
-  }
-};
-$('btnEvac').onclick=()=>{
-  hero={r:0,c:0,safe:true};   // 가장 높은 곳(갈색)으로
-  say('높은 곳으로 대피 성공! 안전해요.'); badge('안전','#43A047');
-  $('btnEvac').style.display='none'; draw();
-};
-$('btnReset').onclick=()=>{
-  water=0; hero={r:4,c:2,safe:false};
-  say('비가 오면 물이 어디로 갈까요?'); badge('안전','#43A047');
-  $('rainAmt').textContent='맑음';
-  $('btnRain').style.display='block'; $('btnEvac').style.display='none'; draw();
-};
-draw();
+function pointInTile(mx,my,r,c){const p=iso(r,c,elev[r][c]);
+  return Math.abs(mx-p.x)/(TW/2)+Math.abs(my-p.y)/(TH/2)<=1;}
+
+cv.addEventListener('click',ev=>{
+  const rect=cv.getBoundingClientRect();
+  const mx=(ev.clientX-rect.left)*(cv.width/rect.width);
+  const my=(ev.clientY-rect.top)*(cv.height/rect.height);
+  for(let s=2*(N-1);s>=0;s--)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
+    if(pointInTile(mx,my,r,c)){moveHero(r,c);return;}}
+});
+function moveHero(r,c){
+  if(r===hero.r&&c===hero.c)return;
+  hopFrom={r:hero.r,c:hero.c}; hero={r,c}; hopT=0;
+}
+function splash(r,c){const p=iso(r,c,waterVisual);
+  for(let i=0;i<3;i++)ripples.push({x:p.x,y:p.y,t:-i*0.15});}
+
+function draw(t){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
+    const e=elev[r][c],p=iso(r,c,e);
+    sideWalls(p.x,p.y,e,heightColor(e));
+    diamond(p.x,p.y,heightColor(e),'rgba(255,255,255,.35)');}
+  const wob=Math.sin(t/380)*1.6;
+  for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
+    if(elev[r][c]<waterVisual-0.02){const p=iso(r,c,waterVisual);
+      diamond(p.x,p.y+wob,'rgba(47,111,191,.80)','rgba(255,255,255,.55)');}}
+  ripples.forEach(rp=>{if(rp.t<0)return;ctx.strokeStyle='rgba(255,255,255,'+(1-rp.t)*0.7+')';ctx.lineWidth=2;
+    ctx.beginPath();ctx.ellipse(rp.x,rp.y,rp.t*26,rp.t*13,0,0,7);ctx.stroke();});
+  const hp=iso(hero.r,hero.c,Math.max(elev[hero.r][hero.c],waterVisual));
+  let hx=hp.x,hy=hp.y;
+  if(hopT<1){const fp=iso(hopFrom.r,hopFrom.c,Math.max(elev[hopFrom.r][hopFrom.c],waterVisual));
+    hx=fp.x+(hp.x-fp.x)*hopT; hy=fp.y+(hp.y-fp.y)*hopT - Math.sin(hopT*Math.PI)*34;}
+  const bob=Math.sin(t/300)*4;
+  const flooded=elev[hero.r][hero.c]<waterVisual-0.02;
+  const heroE=elev[hero.r][hero.c];
+  const img=flooded?imgs.danger:(heroE>=4?imgs.happy:imgs.rain);
+  if(img&&img.complete){const w=92,h=92;ctx.drawImage(img,hx-w/2,hy-h+10+(hopT<1?0:bob),w,h);}
+  if(raining)drops.forEach(d=>{ctx.strokeStyle='rgba(120,170,220,.55)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(d.x-2,d.y+12);ctx.stroke();});
+}
+
+function loop(t){
+  if(waterVisual<targetWater)waterVisual=Math.min(targetWater,waterVisual+0.012);
+  ripples.forEach(r=>r.t+=0.03); ripples=ripples.filter(r=>r.t<1);
+  if(raining){if(drops.length<70&&Math.random()<0.6)drops.push({x:Math.random()*cv.width,y:-10,v:5+Math.random()*4});
+    drops.forEach(d=>d.y+=d.v); drops=drops.filter(d=>d.y<cv.height);}
+  if(hopT<1){hopT=Math.min(1,hopT+0.06); if(hopT>=1&&elev[hero.r][hero.c]<waterVisual-0.02)splash(hero.r,hero.c);}
+  updateStatus();
+  draw(t);
+  requestAnimationFrame(loop);
+}
+function updateStatus(){
+  const heroE=elev[hero.r][hero.c];
+  const flooded=heroE<waterVisual-0.02;
+  let b,col,msg;
+  if(flooded){b='위험';col='#E53935';msg='물에 잠겼어요! 더 높은 곳으로 옮겨요!';}
+  else if(waterVisual>=heroE-0.55&&waterVisual>0){b='경고';col='#FB8C00';msg='물이 코앞이에요. 조심!';}
+  else if(heroE>=4){b='안전';col='#43A047';msg='높은 곳이라 안전해요!';}
+  else {b='안전';col='#43A047';msg= waterVisual>0?'아직은 괜찮아요. 더 높은 곳은?':'기상이를 안전한 곳으로 옮겨요. 칸을 눌러보세요!';}
+  const key=b+msg;
+  if(key!==lastKey){lastKey=key;$('badge').textContent=b;$('badge').style.background=col;$('speech').textContent=msg;}
+}
+
+$('btnRain').onclick=()=>{raining=true;targetWater=Math.min(5,targetWater+1);
+  $('rainAmt').textContent='시간당 빗물 '+Math.round(targetWater*18)+'mm';};
+$('btnReset').onclick=()=>{targetWater=0;waterVisual=0;raining=false;drops=[];ripples=[];
+  hero={r:3,c:3};hopFrom={r:3,c:3};hopT=1;$('rainAmt').textContent='맑음';lastKey='';};
+
+let ready=setInterval(()=>{if(imgs.rain.complete){clearInterval(ready);requestAnimationFrame(loop);}},60);
 </script>
 </body>
 </html>
