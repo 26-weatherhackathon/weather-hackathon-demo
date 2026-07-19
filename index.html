@@ -82,6 +82,13 @@ let ripples=[], lastKey='';
 const imgs={};
 ['rain','danger','happy'].forEach(k=>{const i=new Image();i.src='img/'+k+'.png';imgs[k]=i;});
 
+// ---- 마을 오브젝트(생성형 AI 에셋) ----
+const objImgs={};
+['house','school','hospital','tree'].forEach(k=>{const i=new Image();i.src='img/assets/'+k+'.png';objImgs[k]=i;});
+// 낮은 곳에 마을(집·학교·병원) → 물이 차면 먼저 잠김. 높은 가장자리엔 나무(풍경).
+const village={'2,3':'hospital','3,2':'house','4,3':'house','3,4':'house','2,4':'school',
+  '0,2':'tree','1,0':'tree','0,4':'tree','4,0':'tree'};
+
 // ---- 비 (캔버스 파티클: 자연스러운 낙하) ----
 const drops=[];
 for(let i=0;i<110;i++)drops.push({x:Math.random()*cv.width,y:Math.random()*cv.height,
@@ -139,15 +146,17 @@ function surfH(r,c,t){return waterVisual + Math.sin((r+c)*0.85+t/280)*0.05 + Mat
 
 function draw(t){
   ctx.clearRect(0,0,cv.width,cv.height);
-  // 지형
+  // 지형 + 마을 오브젝트 + 물 (뒤→앞 한 번에: 깊이 정렬 자동)
   for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
     const e=elev[r][c],p=iso(r,c,e);
     sideWalls(p.x,p.y,e,heightColor(e));
-    diamond(p.x,p.y,heightColor(e),'rgba(255,255,255,.28)');}
-  // 물: 반투명 + 출렁이는 수면
-  for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
-    if(isFlooded(r,c)){const p=iso(r,c,surfH(r,c,t));
-      diamond(p.x,p.y,waterColor(waterVisual-elev[r][c]),null);}}
+    diamond(p.x,p.y,heightColor(e),'rgba(255,255,255,.28)');
+    const ob=village[r+','+c];
+    if(ob&&objImgs[ob]&&objImgs[ob].complete){const im=objImgs[ob];
+      const tw=TW*1.18, th2=tw*(im.naturalHeight/im.naturalWidth);
+      ctx.drawImage(im,p.x-tw/2,p.y+TH*0.20-th2,tw,th2);}     // 타일 위에 세움
+    if(isFlooded(r,c)){const wp=iso(r,c,surfH(r,c,t));         // 물이 건물 밑동을 덮음
+      diamond(wp.x,wp.y,waterColor(waterVisual-e),null);}}
   // 물가 거품(shoreline): 물이 마른 땅과 만나는 가장자리에 흰 물결선
   ctx.lineCap='round';
   for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
