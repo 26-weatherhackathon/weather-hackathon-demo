@@ -23,9 +23,6 @@ const config: Config = {
           danger: "#E53935",
         },
       },
-      fontFamily: {
-        jua: ['"Jua"', '"Apple SD Gothic Neo"', "sans-serif"],
-      },
       keyframes: {
         "pulse-glow": {
           "0%, 100%": { opacity: "1", transform: "scale(1)" },
