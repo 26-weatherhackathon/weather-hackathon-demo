@@ -119,11 +119,12 @@ function diamond(x,y,fill,stroke){ctx.beginPath();
   ctx.moveTo(x,y-TH/2);ctx.lineTo(x+TW/2,y);ctx.lineTo(x,y+TH/2);ctx.lineTo(x-TW/2,y);
   ctx.closePath();ctx.fillStyle=fill;ctx.fill();
   if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke();}}
-function sideWalls(x,y,e,base){const h=e*ESTEP;if(h<=0)return;
-  ctx.fillStyle=shade(base,-30);
+function walls(x,y,h,cL,cR){if(h<=0)return;
+  ctx.fillStyle=cL;
   ctx.beginPath();ctx.moveTo(x-TW/2,y);ctx.lineTo(x,y+TH/2);ctx.lineTo(x,y+TH/2+h);ctx.lineTo(x-TW/2,y+h);ctx.closePath();ctx.fill();
-  ctx.fillStyle=shade(base,-52);
+  ctx.fillStyle=cR;
   ctx.beginPath();ctx.moveTo(x+TW/2,y);ctx.lineTo(x,y+TH/2);ctx.lineTo(x,y+TH/2+h);ctx.lineTo(x+TW/2,y+h);ctx.closePath();ctx.fill();}
+function sideWalls(x,y,e,base){walls(x,y,e*ESTEP,shade(base,-30),shade(base,-52));}
 function pointInTile(mx,my,r,c){const p=iso(r,c,elev[r][c]);
   return Math.abs(mx-p.x)/(TW/2)+Math.abs(my-p.y)/(TH/2)<=1;}
 function isFlooded(r,c){return r>=0&&r<N&&c>=0&&c<N&&elev[r][c]<waterVisual-0.02;}
@@ -135,7 +136,9 @@ cv.addEventListener('click',ev=>{
   for(let s=2*(N-1);s>=0;s--)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
     if(pointInTile(mx,my,r,c)){moveHero(r,c);return;}}
 });
+let blockMsg='', blockUntil=0;
 function moveHero(r,c){if(r===hero.r&&c===hero.c)return;
+  if(village[r+','+c]){blockMsg='거기엔 건물·나무가 있어 갈 수 없어요!';blockUntil=performance.now()+1500;lastKey='';return;}
   hopFrom={r:hero.r,c:hero.c}; hero={r,c}; hopT=0;}
 function splash(r,c){const p=iso(r,c,waterVisual);
   for(let i=0;i<3;i++)ripples.push({x:p.x,y:p.y,t:-i*0.15});}
@@ -158,6 +161,7 @@ function draw(t){
       const tw=TW*0.92, th2=tw*(im.naturalHeight/im.naturalWidth);
       ctx.drawImage(im,p.x-tw/2,p.y+TH*0.32-th2,tw,th2);}
     if(isFlooded(r,c)){const wp=iso(r,c,surfH(r,c,t));
+      walls(wp.x,wp.y,(waterVisual-e)*ESTEP,'rgba(58,120,196,0.55)','rgba(38,92,158,0.63)'); // 물 옆면(3D 차오름)
       diamond(wp.x,wp.y,waterColor(waterVisual-e),null);}}
   ctx.lineCap='round';
   for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
@@ -209,6 +213,7 @@ function loop(t){
   requestAnimationFrame(loop);
 }
 function updateStatus(){
+  if(performance.now()<blockUntil){if(lastKey!=='block'){lastKey='block';$('speech').textContent=blockMsg;}return;}
   const heroE=elev[hero.r][hero.c];
   const flooded=heroE<waterVisual-0.02;
   let b,col,msg;
