@@ -60,7 +60,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="DEM GeoTIFF → JSON 고도 격자")
     parser.add_argument("--input", type=Path, default=root / "data/dem/dongjak_cop30.tif")
     parser.add_argument("--output", type=Path, default=root / "data/dem/dongjak_grid.json")
-    parser.add_argument("--size", type=int, default=64, help="정사각 격자 한 변의 셀 수")
+    parser.add_argument("--size", type=int, default=30, help="정사각 격자 한 변의 셀 수(게임 GRID_SIZE와 일치)")
     args = parser.parse_args()
 
     grid = dem_to_grid(args.input, args.size, DONGJAK_BBOX)
