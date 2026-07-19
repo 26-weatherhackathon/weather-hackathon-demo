@@ -79,7 +79,7 @@ const elev=[
  [2,2,3,3,3,5,4,4,2,2],
 ];
 const N=elev.length;
-const TW=78, TH=39, ESTEP=17;
+const TW=78, TH=39, ESTEP=23;   // 높이감 강화
 const OX=cv.width/2, OY=140;
 let targetWater=0, waterVisual=0, raining=false;
 let hero={r:3,c:3}, hopFrom={r:3,c:3}, hopT=1;
@@ -91,7 +91,8 @@ const imgs={};
 // ---- 마을 오브젝트(받침 없는 에셋), 낮은 곳=마을 / 높은 곳=나무 ----
 const objImgs={};
 ['house','school','hospital','tree'].forEach(k=>{const i=new Image();i.src='img/assets/'+k+'.png';objImgs[k]=i;});
-const village={'1,5':'house','3,8':'hospital','8,1':'school','5,6':'tree','6,4':'tree','9,5':'tree'};
+// 마을(집·학교·병원)은 마른 땅(레벨2, 초록 마을)에 시작 → 물이 높이 차오르면 그때 위협받음
+const village={'4,3':'house','7,5':'hospital','8,2':'school','5,6':'tree','6,4':'tree','9,5':'tree'};
 
 // ---- 비 ----
 const drops=[];
@@ -124,7 +125,7 @@ function walls(x,y,h,cL,cR){if(h<=0)return;
   ctx.beginPath();ctx.moveTo(x-TW/2,y);ctx.lineTo(x,y+TH/2);ctx.lineTo(x,y+TH/2+h);ctx.lineTo(x-TW/2,y+h);ctx.closePath();ctx.fill();
   ctx.fillStyle=cR;
   ctx.beginPath();ctx.moveTo(x+TW/2,y);ctx.lineTo(x,y+TH/2);ctx.lineTo(x,y+TH/2+h);ctx.lineTo(x+TW/2,y+h);ctx.closePath();ctx.fill();}
-function sideWalls(x,y,e,base){walls(x,y,e*ESTEP,shade(base,-30),shade(base,-52));}
+function sideWalls(x,y,e,base){walls(x,y,e*ESTEP,shade(base,-42),shade(base,-66));}
 function pointInTile(mx,my,r,c){const p=iso(r,c,elev[r][c]);
   return Math.abs(mx-p.x)/(TW/2)+Math.abs(my-p.y)/(TH/2)<=1;}
 function isFlooded(r,c){return r>=0&&r<N&&c>=0&&c<N&&elev[r][c]<waterVisual-0.02;}
@@ -160,9 +161,9 @@ function draw(t){
     if(ob&&objImgs[ob]&&objImgs[ob].complete){const im=objImgs[ob];
       const tw=TW*0.92, th2=tw*(im.naturalHeight/im.naturalWidth);
       ctx.drawImage(im,p.x-tw/2,p.y+TH*0.32-th2,tw,th2);}
-    if(isFlooded(r,c)){const wp=iso(r,c,surfH(r,c,t));
-      walls(wp.x,wp.y,(waterVisual-e)*ESTEP,'rgba(58,120,196,0.55)','rgba(38,92,158,0.63)'); // 물 옆면(3D 차오름)
-      diamond(wp.x,wp.y,waterColor(waterVisual-e),null);}}
+    if(isFlooded(r,c)){const wp=iso(r,c,surfH(r,c,t)); const dh=(waterVisual-e)*ESTEP;
+      walls(wp.x,wp.y,dh,'rgba(52,112,188,0.62)','rgba(30,80,150,0.72)');   // 물 옆면(깊을수록 진함)
+      diamond(wp.x,wp.y,waterColor(waterVisual-e),'rgba(200,235,255,0.45)');}} // 수면선 강조
   ctx.lineCap='round';
   for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
     if(!isFlooded(r,c))continue;
