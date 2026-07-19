@@ -167,9 +167,10 @@ export default function Home() {
                   <div className="mt-3 flex justify-center">
                     <Stars n={g.result.stars} />
                   </div>
-                  <p className="mt-3 text-base text-slate-500">
-                    침수된 건물 {g.result.flooded} / {g.totalHouses}채 · 남은 예산{" "}
-                    {g.budget}원
+                  <p className="mt-3 text-sm text-white/70">
+                    침수된 건물 {g.result.flooded} / {g.totalHouses}채
+                    <br />
+                    남은 예산 {g.budget}만원
                   </p>
                   <button
                     onClick={g.reset}
@@ -182,15 +183,29 @@ export default function Home() {
             )}
           </section>
 
-          {/* 우측 컨트롤 (한 화면 고정) */}
-          <aside className="flex w-[380px] shrink-0 flex-col gap-3">
-            {/* 수위 게이지 */}
-            <div className={`shrink-0 px-5 py-4 ${PANEL}`}>
-              <div className="mb-2 flex justify-between text-sm font-bold text-slate-500">
-                <span>현재 수위 {g.level.toFixed(1)}m</span>
-                <span>
-                  마을 고도 {g.villageElev.min}~{g.villageElev.max}m
-                </span>
+          {/* 우: 컨트롤 패널 */}
+          <aside className="flex flex-col gap-4">
+            {/* 예산 + 통계 */}
+            <div className="rounded-2xl border border-white/15 bg-white/10 p-4 shadow-xl backdrop-blur-xl">
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-xs text-white/50">남은 예산</p>
+                  <p className="text-2xl font-bold text-emerald-300">
+                    {g.budget}
+                    <span className="ml-1 text-sm font-normal text-white/50">
+                      / {g.startBudget}만원
+                    </span>
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-white/50">안전한 건물</p>
+                  <p className="text-2xl font-bold text-white">
+                    {safe}
+                    <span className="ml-1 text-sm font-normal text-white/50">
+                      / {g.totalHouses}
+                    </span>
+                  </p>
+                </div>
               </div>
               <div className="relative h-6 w-full overflow-hidden rounded-full border-2 border-slate-100 bg-slate-100">
                 <div
@@ -235,14 +250,23 @@ export default function Home() {
                           : "border-slate-200 bg-white shadow-[0_4px_0_rgba(180,200,220,0.5)] hover:-translate-y-0.5"
                       }`}
                     >
-                      <span className="text-4xl">{s.emoji}</span>
-                      <span className="font-jua text-sm text-slate-700">{s.name}</span>
-                      <span
-                        className={`flex items-center gap-1 text-xs font-bold ${
-                          tooPoor ? "text-rose-500" : "text-amber-600"
-                        }`}
-                      >
-                        {id === "remove" ? "환급" : (<><Coin size={16} />{s.cost}</>)}
+                      <span className="text-xl">{s.emoji}</span>
+                      <span className="flex-1">
+                        <span className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-white">
+                            {s.name}
+                          </span>
+                          <span
+                            className={`text-xs ${
+                              tooPoor ? "text-rose-400" : "text-emerald-300"
+                            }`}
+                          >
+                            {id === "remove" ? "환급" : `${s.cost}만원`}
+                          </span>
+                        </span>
+                        <span className="block text-[11px] text-white/50">
+                          {s.short}
+                        </span>
                       </span>
                     </button>
                   );

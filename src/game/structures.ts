@@ -11,6 +11,7 @@ export interface StructureDef {
   id: ToolId;
   name: string;
   emoji: string;
+  /** 설치 비용(단위: 만원). 초등 학습자를 위해 화면에는 "○○만원"으로 표기한다. */
   cost: number;
   color: string;
   /** 타일 높이 증가(m) */
@@ -30,7 +31,7 @@ export const STRUCTURES: Record<ToolId, StructureDef> = {
     id: "sandbag",
     name: "모래주머니",
     emoji: "🟫",
-    cost: 40,
+    cost: 20,
     color: "#c9a05a",
     barrier: 1.5,
     pump: false,
@@ -42,7 +43,7 @@ export const STRUCTURES: Record<ToolId, StructureDef> = {
     id: "levee",
     name: "제방",
     emoji: "🧱",
-    cost: 120,
+    cost: 70,
     color: "#8a8f98",
     barrier: 6,
     pump: false,
@@ -54,7 +55,7 @@ export const STRUCTURES: Record<ToolId, StructureDef> = {
     id: "pump",
     name: "배수펌프",
     emoji: "🌀",
-    cost: 150,
+    cost: 90,
     color: "#4fb3d9",
     barrier: 0,
     pump: true,
@@ -66,7 +67,7 @@ export const STRUCTURES: Record<ToolId, StructureDef> = {
     id: "basin",
     name: "빗물 저류조",
     emoji: "🛢️",
-    cost: 130,
+    cost: 80,
     color: "#5a7fc9",
     barrier: 0,
     pump: false,

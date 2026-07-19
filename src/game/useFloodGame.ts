@@ -40,7 +40,7 @@ const DURATION = 50; // 호우 지속 시간(초)
 const RISE = 36; // 최고 수위 도달까지 걸리는 시간(초)
 const BASE_LEVEL = 3; // 평상시 하천 수위(m)
 const FLOOD_THRESHOLD = 0.3; // 침수 판정 수심(m)
-const BUDGET = 800; // 시작 예산(원)
+const BUDGET = 500; // 시작 예산(단위: 만원 → 화면에는 "500만원"으로 표기)
 const BASIN_CAP = 2.5; // 저류조 수위 저감 상한(m)
 
 function easeInOut(t: number): number {
