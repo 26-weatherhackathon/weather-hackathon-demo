@@ -4,23 +4,26 @@ import IsometricMap from "@/components/IsometricMap";
 import { useFloodGame } from "@/game/useFloodGame";
 import { PLACEABLE, STRUCTURES, type ToolId } from "@/game/structures";
 
-function StatusDot({ label, tone }: { label: string; tone: "green" | "cyan" }) {
-  const color = tone === "green" ? "bg-emerald-400" : "bg-cyan-400";
+// 게임 HUD 공통 스타일 (로블록스풍: 두꺼운 흰 테두리 + 딱딱한 바닥 그림자)
+const PANEL =
+  "rounded-[24px] border-[3px] border-white bg-white shadow-[0_7px_0_rgba(150,190,225,0.5),0_16px_28px_rgba(60,120,180,0.14)]";
+
+function Coin({ size = 22 }: { size?: number }) {
   return (
-    <div className="flex items-center gap-2">
-      <span
-        className={`h-2.5 w-2.5 rounded-full ${color} shadow-[0_0_8px_currentColor] animate-pulse-glow`}
-      />
-      <span className="text-xs font-medium text-white/80">{label}</span>
-    </div>
+    <span
+      className="grid place-items-center rounded-full border-2 border-amber-500 bg-amber-200 font-bold text-amber-800"
+      style={{ width: size, height: size, fontSize: size * 0.5 }}
+    >
+      ₩
+    </span>
   );
 }
 
 function Stars({ n }: { n: number }) {
   return (
-    <div className="text-3xl tracking-widest">
+    <div className="text-5xl tracking-widest text-amber-400 drop-shadow-[0_2px_0_rgba(217,119,6,0.4)]">
       {"★★★".slice(0, n)}
-      <span className="text-white/25">{"★★★".slice(n)}</span>
+      <span className="text-slate-200">{"★★★".slice(n)}</span>
     </div>
   );
 }
@@ -31,7 +34,6 @@ export default function Home() {
   const stormProgress = Math.min(1, g.elapsed / g.duration);
   const remain = Math.max(0, Math.ceil(g.duration - g.elapsed));
 
-  // 수위 게이지: BASE(3) ~ 시나리오 최고 수위 범위
   const gaugeMin = 3;
   const gaugeMax = g.scenario.peakLevel + 1;
   const levelPct = Math.max(
@@ -44,82 +46,123 @@ export default function Home() {
   const safe = g.totalHouses - g.floodedNow;
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-slate-950">
-      <div className="pointer-events-none absolute -top-40 -right-32 h-96 w-96 rounded-full bg-cyan-500/20 blur-3xl" />
-      <div className="pointer-events-none absolute top-1/3 -left-40 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(56,189,248,0.08),transparent_60%)]" />
-
-      <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-5 px-4 py-6">
-        {/* 헤더 HUD */}
-        <header className="flex flex-col gap-4 rounded-2xl border border-white/15 bg-white/10 p-5 shadow-2xl backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-indigo-500 text-2xl shadow-lg">
-              🏘️
+    <main className="flex h-screen flex-col overflow-hidden">
+      <div className="mx-auto flex h-full w-full max-w-[1440px] flex-col gap-3 px-6 py-4">
+        {/* ── 상단 HUD ── */}
+        <header className="flex shrink-0 items-center gap-3">
+          <div className={`flex items-center gap-3 px-5 py-3 ${PANEL}`}>
+            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-sky-100">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/img/gisang.png"
+                alt="기상이"
+                className="h-11 w-11 object-contain"
+              />
             </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">
-                우리 마을 홍수 방재 게임
-              </h1>
-              <p className="text-xs text-white/60">
-                시나리오 · {g.scenario.name} (강수확률 {g.scenario.precipProb}% · 강수량{" "}
-                {g.scenario.rainfall}mm)
+            <div className="leading-tight">
+              <p className="font-jua text-lg text-slate-700">우리 마을 홍수 방재</p>
+              <p className="text-xs text-slate-400">
+                {g.scenario.name} · 강수확률 {g.scenario.precipProb}% ·{" "}
+                {g.scenario.rainfall}mm
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-            <StatusDot label="시스템 온라인" tone="green" />
-            <StatusDot label="기상청 API 연결됨" tone="cyan" />
+
+          <div className="flex-1" />
+
+          <div className="flex items-center gap-2.5 rounded-full border-[3px] border-white bg-gradient-to-b from-amber-300 to-amber-400 px-5 py-2.5 shadow-[0_5px_0_rgba(202,138,4,0.55)]">
+            <Coin size={26} />
+            <span className="font-jua text-2xl text-amber-900">{g.budget}</span>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border-[3px] border-white bg-gradient-to-b from-emerald-300 to-emerald-400 px-5 py-2.5 shadow-[0_5px_0_rgba(5,150,105,0.5)]">
+            <span className="text-xl">🏠</span>
+            <span className="font-jua text-2xl text-emerald-900">
+              {safe}/{g.totalHouses}
+            </span>
           </div>
         </header>
 
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_320px]">
-          {/* 좌: 게임 보드 */}
-          <section className="relative overflow-hidden rounded-2xl border border-white/15 bg-white/5 shadow-2xl backdrop-blur-md">
-            <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
-              <span className="text-xs font-semibold uppercase tracking-wider text-white/50">
+        {/* ── 본문: 좌 게임판 / 우 컨트롤 (한 화면) ── */}
+        <div className="flex min-h-0 flex-1 gap-4">
+          {/* 게임판 */}
+          <section
+            className="relative flex min-w-0 flex-1 flex-col overflow-hidden border-[4px] border-white bg-sky-100 shadow-[0_9px_0_rgba(150,190,225,0.5),0_20px_36px_rgba(60,120,180,0.2)]"
+            style={{ borderRadius: 28 }}
+          >
+            <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-3">
+              <span className="font-jua text-base text-slate-600">
                 {g.phase === "ready"
-                  ? "대비 단계 · 시설을 배치하세요"
+                  ? "🛠️ 대비 단계 · 시설을 배치하세요"
                   : g.phase === "storm"
-                  ? `호우 진행 중 · ${remain}초 남음`
+                  ? "🌧️ 호우 진행 중"
                   : "결과"}
               </span>
-              <span className="flex items-center gap-1.5 text-xs text-white/60">
-                <span className="h-2 w-2 animate-pulse-glow rounded-full bg-rose-400" />
+              <span className="flex items-center gap-1.5 text-sm font-bold text-rose-500">
+                <span className="h-2.5 w-2.5 animate-pulse-glow rounded-full bg-rose-400" />
                 예상 최고 수위 {g.peakLevel.toFixed(1)}m
               </span>
             </div>
 
-            {/* 진행 바 */}
-            <div className="h-1 w-full bg-white/10">
+            <div className="h-2 w-full shrink-0 bg-white/70">
               <div
-                className="h-full bg-gradient-to-r from-cyan-400 to-rose-400 transition-[width] duration-200"
+                className="h-full bg-gradient-to-r from-sky-400 to-rose-400 transition-[width] duration-200"
                 style={{ width: `${stormProgress * 100}%` }}
               />
             </div>
 
-            <div className="bg-slate-950">
-              <IsometricMap
-                grid={g.grid}
-                zone={g.zone}
-                placed={g.placed}
-                level={g.level}
-                tool={g.tool}
-                interactive={g.phase !== "result"}
-                onPlace={g.place}
-              />
+            <div className="relative flex min-h-0 flex-1 justify-center overflow-hidden">
+              <div className="mx-auto h-full" style={{ aspectRatio: "860 / 620" }}>
+                <IsometricMap
+                  grid={g.grid}
+                  zone={g.zone}
+                  placed={g.placed}
+                  level={g.level}
+                  tool={g.tool}
+                  interactive={g.phase !== "result"}
+                  onPlace={g.place}
+                />
+              </div>
+
+              {g.phase === "storm" && (
+                <div className="pointer-events-none absolute left-1/2 top-4 z-10 -translate-x-1/2">
+                  <div className="flex items-baseline gap-2 rounded-3xl border-[3px] border-white bg-white px-8 py-3 shadow-[0_6px_0_rgba(150,190,225,0.6)]">
+                    <span className="text-base font-bold text-slate-400">남은 시간</span>
+                    <span
+                      className={`font-jua text-6xl leading-none ${
+                        remain <= 5 ? "text-rose-500" : "text-sky-600"
+                      }`}
+                    >
+                      {remain}
+                    </span>
+                    <span className="text-xl font-bold text-slate-400">초</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* 결과 모달 */}
             {g.result && (
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
-                <div className="mx-4 w-full max-w-sm rounded-2xl border border-white/15 bg-white/10 p-6 text-center shadow-2xl">
-                  <p className="text-sm font-medium text-white/60">호우 종료</p>
-                  <h2 className="mt-1 text-2xl font-bold text-white">
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm">
+                <div
+                  className="mx-4 w-full max-w-sm border-[4px] border-white bg-white p-7 text-center shadow-2xl"
+                  style={{ borderRadius: 28 }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={
+                      g.result.stars >= 1
+                        ? "/img/gisang-happy.png"
+                        : "/img/gisang-danger.png"
+                    }
+                    alt="기상이"
+                    className="mx-auto h-28 w-28 animate-pop object-contain"
+                  />
+                  <h2 className="font-jua mt-2 text-3xl text-slate-700">
                     {g.result.flooded === 0
-                      ? "완벽 방어! 🎉"
+                      ? "완벽 방어!"
                       : g.result.stars >= 1
                       ? "마을을 지켰어요!"
-                      : "마을이 잠겼어요 😢"}
+                      : "마을이 잠겼어요"}
                   </h2>
                   <div className="mt-3 flex justify-center">
                     <Stars n={g.result.stars} />
@@ -131,7 +174,7 @@ export default function Home() {
                   </p>
                   <button
                     onClick={g.reset}
-                    className="mt-5 w-full rounded-xl bg-gradient-to-r from-cyan-400 to-indigo-500 px-4 py-2.5 font-semibold text-slate-900 shadow-lg transition hover:brightness-110"
+                    className="font-jua mt-5 w-full rounded-2xl border-[3px] border-white bg-gradient-to-b from-sky-400 to-sky-500 px-4 py-3.5 text-xl text-white shadow-[0_6px_0_#2f6fb0] transition active:translate-y-1 active:shadow-[0_2px_0_#2f6fb0]"
                   >
                     다시 도전하기
                   </button>
@@ -164,45 +207,35 @@ export default function Home() {
                   </p>
                 </div>
               </div>
-
-              {/* 수위 게이지 */}
-              <div className="mt-4">
-                <div className="mb-1 flex justify-between text-[11px] text-white/50">
-                  <span>현재 수위 {g.level.toFixed(1)}m</span>
-                  <span>마을 고도 {g.villageElev.min}~{g.villageElev.max}m</span>
-                </div>
-                <div className="relative h-4 w-full overflow-hidden rounded-full bg-slate-800">
-                  {/* 마을 고도 밴드 */}
-                  <div
-                    className="absolute top-0 h-full bg-emerald-500/25"
-                    style={{
-                      left: `${Math.max(0, villageMinPct)}%`,
-                      width: `${Math.max(2, villageMaxPct - villageMinPct)}%`,
-                    }}
-                  />
-                  {/* 물 */}
-                  <div
-                    className="absolute top-0 h-full bg-gradient-to-r from-cyan-500/70 to-blue-500/70 transition-[width] duration-200"
-                    style={{ width: `${levelPct}%` }}
-                  />
-                </div>
-                <p className="mt-1 text-[11px] text-white/45">
-                  물(파랑)이 마을 고도(초록)를 넘으면 침수돼요.
-                  {g.basinReduction > 0 && (
-                    <span className="text-cyan-300">
-                      {" "}저류조로 수위 -{g.basinReduction.toFixed(1)}m
-                    </span>
-                  )}
-                </p>
+              <div className="relative h-6 w-full overflow-hidden rounded-full border-2 border-slate-100 bg-slate-100">
+                <div
+                  className="absolute top-0 h-full bg-emerald-400/40"
+                  style={{
+                    left: `${Math.max(0, villageMinPct)}%`,
+                    width: `${Math.max(2, villageMaxPct - villageMinPct)}%`,
+                  }}
+                />
+                <div
+                  className="absolute top-0 h-full bg-gradient-to-r from-sky-400 to-blue-500 transition-[width] duration-200"
+                  style={{ width: `${levelPct}%` }}
+                />
               </div>
+              <p className="mt-2 text-xs text-slate-400">
+                물(파랑)이 마을 고도(초록)를 넘으면 침수돼요.
+                {g.basinReduction > 0 && (
+                  <span className="font-bold text-sky-500">
+                    {" "}저류조로 수위 -{g.basinReduction.toFixed(1)}m
+                  </span>
+                )}
+              </p>
             </div>
 
             {/* 도구 팔레트 */}
-            <div className="rounded-2xl border border-white/15 bg-white/10 p-4 shadow-xl backdrop-blur-xl">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
-                방재 시설 {g.phase !== "result" && "· 선택 후 지도 클릭"}
+            <div className={`flex min-h-0 flex-1 flex-col px-5 py-4 ${PANEL}`}>
+              <p className="font-jua mb-3 text-base text-slate-600">
+                🧰 방재 시설 {g.phase !== "result" && "· 골라서 지도에 설치"}
               </p>
-              <div className="grid grid-cols-1 gap-2">
+              <div className="grid grid-cols-2 gap-2.5">
                 {PLACEABLE.map((id: ToolId) => {
                   const s = STRUCTURES[id];
                   const selected = g.tool === id;
@@ -211,10 +244,10 @@ export default function Home() {
                     <button
                       key={id}
                       onClick={() => g.setTool(id)}
-                      className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-left transition ${
+                      className={`flex flex-col items-center gap-1 rounded-2xl border-[3px] px-2 py-3 transition ${
                         selected
-                          ? "border-cyan-400/70 bg-cyan-400/15 ring-1 ring-cyan-400/50"
-                          : "border-white/10 bg-black/20 hover:bg-black/30"
+                          ? "-translate-y-0.5 border-amber-400 bg-amber-50 shadow-[0_6px_0_rgba(251,191,36,0.5)]"
+                          : "border-slate-200 bg-white shadow-[0_4px_0_rgba(180,200,220,0.5)] hover:-translate-y-0.5"
                       }`}
                     >
                       <span className="text-xl">{s.emoji}</span>
@@ -239,63 +272,37 @@ export default function Home() {
                   );
                 })}
               </div>
-              {/* 선택 도구 학습 팁 */}
+
               {STRUCTURES[g.tool].learn && (
-                <p className="mt-3 rounded-lg bg-cyan-400/10 px-3 py-2 text-[11px] leading-relaxed text-cyan-100/90">
+                <p className="mt-3 rounded-2xl bg-sky-50 px-4 py-3 text-sm leading-relaxed text-sky-700">
                   💡 {STRUCTURES[g.tool].learn}
                 </p>
               )}
-            </div>
 
-            {/* 컨트롤 */}
-            <div className="flex gap-2">
-              {g.phase === "ready" && (
+              <div className="mt-auto flex gap-2.5 pt-3">
+                {g.phase === "ready" && (
+                  <button
+                    onClick={g.start}
+                    className="font-jua flex-1 rounded-2xl border-[3px] border-white bg-gradient-to-b from-rose-400 to-orange-500 px-4 py-4 text-2xl text-white shadow-[0_6px_0_#c2410c] transition active:translate-y-1 active:shadow-[0_2px_0_#c2410c]"
+                  >
+                    ⛈️ 폭우 시작!
+                  </button>
+                )}
+                {g.phase === "storm" && (
+                  <div className="flex-1 rounded-2xl border-[3px] border-sky-100 bg-sky-50 px-4 py-4 text-center font-jua text-xl text-slate-500">
+                    호우 대응 중… {remain}s
+                  </div>
+                )}
                 <button
-                  onClick={g.start}
-                  className="flex-1 rounded-xl bg-gradient-to-r from-rose-500 to-orange-400 px-4 py-3 font-bold text-white shadow-lg transition hover:brightness-110"
+                  onClick={g.reset}
+                  className="font-jua rounded-2xl border-[3px] border-slate-200 bg-white px-5 py-4 text-lg text-slate-500 shadow-[0_5px_0_rgba(180,200,220,0.5)] transition active:translate-y-1"
                 >
-                  ⛈️ 폭우 시작
+                  다시하기
                 </button>
-              )}
-              {g.phase === "storm" && (
-                <div className="flex-1 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-center font-semibold text-white/80">
-                  호우 대응 중… {remain}s
-                </div>
-              )}
-              <button
-                onClick={g.reset}
-                className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 font-semibold text-white/80 transition hover:bg-white/10"
-              >
-                다시하기
-              </button>
+              </div>
             </div>
           </aside>
         </div>
-
-        {/* 학습 안내 */}
-        <section className="rounded-2xl border border-white/15 bg-white/10 p-4 shadow-xl backdrop-blur-xl">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
-            학습 목표 · 이렇게 배워요
-          </h2>
-          <div className="grid gap-3 text-xs text-white/70 sm:grid-cols-3">
-            <p>
-              <span className="font-semibold text-white">① 고도와 침수</span>
-              <br />물은 낮은 곳부터 채워져요. 우리 집 고도와 물 높이를 비교해 위험한 집을 찾아요.
-            </p>
-            <p>
-              <span className="font-semibold text-white">② 알맞은 방재</span>
-              <br />조금 낮으면 모래주머니, 많이 낮으면 제방, 못 막으면 펌프로 물을 빼요.
-            </p>
-            <p>
-              <span className="font-semibold text-white">③ 지역 전체 대응</span>
-              <br />빗물 저류조는 마을 전체의 물 높이를 낮춰요. 예산 안에서 똑똑하게 조합해요.
-            </p>
-          </div>
-        </section>
-
-        <footer className="pb-4 text-center text-[11px] text-white/40">
-          2026 기상·기후 AI 해커톤 · 초등학생 대상 기후 위기 대응 학습 콘텐츠 데모
-        </footer>
       </div>
     </main>
   );

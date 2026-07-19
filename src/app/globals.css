@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html,
@@ -13,10 +13,16 @@ body {
 
 body {
   margin: 0;
-  background: #070b16;
-  color: #e6edff;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  background: linear-gradient(180deg, #eaf7ff 0%, #d8edfb 55%, #cfe8fa 100%);
+  color: #2b4a63;
+  font-family: "Pretendard Variable", Pretendard, -apple-system,
+    BlinkMacSystemFont, system-ui, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* 제목 강조: Pretendard 굵게 (전용 표시 폰트 대신) */
+.font-jua {
+  font-weight: 800;
+  letter-spacing: -0.015em;
 }
