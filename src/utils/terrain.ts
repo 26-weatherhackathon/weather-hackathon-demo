@@ -1,14 +1,12 @@
-// 30x30 분지형 하천 마을 지형(DEM) 데이터 생성 유틸리티
+// 실제 동작구 DEM(Copernicus GLO-30) 고도 격자로 지형을 만드는 유틸리티.
 //
-// 지형 구조
-//  - 우상단(오른쪽-위) 외곽: 산악 지대(약 40~130m)
-//  - 중앙 대각선(x == y): 하천(약 0~8m)
-//  - 하천 주변 평지: 마을/학교(약 10~25m)
-//
-// 물이 산에서 하천으로 모이는 인과관계가 데이터 구조상 드러나도록,
-// 우상단에서 고도가 솟고 중앙 대각선을 따라 침식된 하천이 흐르도록 구성한다.
+// scripts/dem_to_grid.py가 GeoTIFF를 크롭·리샘플링해 만든 data/dem/dongjak_grid.json을
+// 빌드 시점에 import한다. 격자의 고도값이 그대로 고도→색상·D8 물 흐름·침수 판정의
+// 입력이 된다(PLAN.md 4.1). 5m DEM 교체 시 파이프라인만 재실행하면 된다.
 
-export const GRID_SIZE = 30;
+import demData from "../../data/dem/dongjak_grid.json";
+
+export const GRID_SIZE = demData.size;
 
 export type TerrainType = "mountain" | "hill" | "plain" | "water";
 
@@ -45,94 +43,24 @@ export function getColorByAltitude(altitude: number): string {
   return TERRAIN_COLORS[classifyAltitude(altitude)];
 }
 
-/** 결정적 난수 생성기(mulberry32) — 같은 seed면 항상 같은 지형을 만든다. */
-function mulberry32(seed: number): () => number {
-  let a = seed >>> 0;
-  return function () {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function smoothstep(t: number): number {
-  return t * t * (3 - 2 * t);
-}
-
 /**
- * 완만한 요철(value noise)을 만드는 함수를 반환한다.
- * 저해상도 난수 격자를 bilinear + smoothstep 보간하여 부드러운 노이즈를 생성한다.
+ * 실제 동작구 DEM 고도 격자(dongjak_grid.json)에서 지형을 만든다.
+ * grid[r][c]: r=0이 최북단(north), c=0이 최서단(west).
  */
-function createValueNoise(
-  rand: () => number,
-  cells: number
-): (nx: number, ny: number) => number {
-  const size = cells + 1;
-  const grid: number[] = [];
-  for (let i = 0; i < size * size; i++) grid.push(rand());
-
-  return (nx: number, ny: number): number => {
-    const gx = nx * cells;
-    const gy = ny * cells;
-    const x0 = Math.min(cells - 1, Math.floor(gx));
-    const y0 = Math.min(cells - 1, Math.floor(gy));
-    const tx = smoothstep(gx - x0);
-    const ty = smoothstep(gy - y0);
-
-    const v00 = grid[y0 * size + x0];
-    const v10 = grid[y0 * size + x0 + 1];
-    const v01 = grid[(y0 + 1) * size + x0];
-    const v11 = grid[(y0 + 1) * size + x0 + 1];
-
-    const a = v00 + (v10 - v00) * tx;
-    const b = v01 + (v11 - v01) * tx;
-    return a + (b - a) * ty;
-  };
-}
-
-/**
- * 30x30 분지형 하천 마을 지형을 생성한다.
- * @param seed 결정적 지형 생성을 위한 시드 값
- */
-export function generateTerrainGrid(seed = 20260719): TerrainGrid {
-  const rand = mulberry32(seed);
-  const noise = createValueNoise(rand, 6);
-  const N = GRID_SIZE;
+export function generateTerrainGrid(): TerrainGrid {
+  const rows = demData.grid as number[][];
   const grid: TerrainGrid = [];
 
-  for (let y = 0; y < N; y++) {
+  for (let y = 0; y < rows.length; y++) {
     const row: TerrainCell[] = [];
-    for (let x = 0; x < N; x++) {
-      const nx = x / (N - 1);
-      const ny = y / (N - 1);
-
-      // 우상단(오른쪽-위)에 가까울수록 1에 수렴 → 산악 고도 상승
-      const topRight = (nx + (1 - ny)) / 2;
-      const mountain = Math.pow(topRight, 2.4) * 130;
-
-      // 평지 기본 고도 + 완만한 지형 요철
-      const base = 12;
-      const texture = (noise(nx, ny) - 0.5) * 10;
-
-      let altitude = base + mountain + texture;
-
-      // 중앙 대각선(x == y)을 따라 하천을 침식 → 0~8m 수준으로 끌어내림
-      const diagDist = Math.abs(x - y);
-      const river = Math.max(0, 1 - diagDist / 2.4);
-      const riverBed = 1 + noise(ny, nx) * 6;
-      altitude = altitude * (1 - river) + riverBed * river;
-
-      altitude = Math.max(0, Math.min(140, altitude));
-      const rounded = Math.round(altitude * 10) / 10;
-
+    for (let x = 0; x < rows[y].length; x++) {
+      const altitude = rows[y][x];
       row.push({
         x,
         y,
-        altitude: rounded,
-        type: classifyAltitude(rounded),
-        color: getColorByAltitude(rounded),
+        altitude,
+        type: classifyAltitude(altitude),
+        color: getColorByAltitude(altitude),
       });
     }
     grid.push(row);
@@ -155,22 +83,54 @@ export interface ProtectedZone {
   all: TilePos[];
 }
 
+/** 시설 배치가 허용되는 최소 고도(useFloodGame.ts의 배치 규칙과 일치). */
+const MIN_BUILDABLE_ALTITUDE = 6;
+
 /**
  * 지켜야 할 마을(집·학교)의 위치를 반환한다.
- * 좌하단 저지대 범람원의 결정적 좌표(시드 고정 지형 기준)를 사용한다.
+ *
+ * 하천 바닥(설치 불가 고도)에는 마을을 두지 않는다. 그 경우 어떤 시설도
+ * 놓을 수 없어 선택과 무관하게 항상 침수되어 게임의 핵심 루프(선택에 따라
+ * 결과가 달라짐)가 무너진다. 대신 "시설을 놓을 수 있는 3x3 인접 구역" 중
+ * 평균 고도가 가장 낮은(가장 침수 위험이 큰) 블록을 찾아 마을로 둔다.
+ * 일부 셀은 방어 없이도 안전하고 일부는 조합이 필요하도록, 실제 지형의
+ * 기복이 자연스럽게 난이도를 만든다.
  */
-export function getProtectedZone(_grid: TerrainGrid): ProtectedZone {
-  const houses: TilePos[] = [
-    { x: 4, y: 22 },
-    { x: 5, y: 22 },
-    { x: 6, y: 22 },
-    { x: 4, y: 23 },
-    { x: 6, y: 23 },
-    { x: 4, y: 24 },
-    { x: 5, y: 24 },
-    { x: 6, y: 24 },
-  ];
-  const school: TilePos = { x: 5, y: 23 };
+export function getProtectedZone(grid: TerrainGrid): ProtectedZone {
+  const N = grid.length;
+  let best: { x: number; y: number; avg: number } | null = null;
+
+  for (let y = 0; y <= N - 3; y++) {
+    for (let x = 0; x <= N - 3; x++) {
+      let sum = 0;
+      let buildable = true;
+      for (let dy = 0; dy < 3 && buildable; dy++) {
+        for (let dx = 0; dx < 3; dx++) {
+          const a = grid[y + dy][x + dx].altitude;
+          if (a < MIN_BUILDABLE_ALTITUDE) {
+            buildable = false;
+            break;
+          }
+          sum += a;
+        }
+      }
+      if (!buildable) continue;
+      const avg = sum / 9;
+      if (!best || avg < best.avg) best = { x, y, avg };
+    }
+  }
+
+  // 이론상 전 지역이 설치 불가 고도(<6m)인 경우는 없지만, 방어적으로 좌상단 폴백.
+  const { x: bx, y: by } = best ?? { x: 0, y: 0 };
+
+  const block: TilePos[] = [];
+  for (let dy = 0; dy < 3; dy++) {
+    for (let dx = 0; dx < 3; dx++) block.push({ x: bx + dx, y: by + dy });
+  }
+  block.sort((a, b) => grid[a.y][a.x].altitude - grid[b.y][b.x].altitude);
+
+  const school = block[0]; // 블록 내 최저점(가장 취약) = 학교
+  const houses = block.slice(1);
   return { houses, school, all: [...houses, school] };
 }
 
