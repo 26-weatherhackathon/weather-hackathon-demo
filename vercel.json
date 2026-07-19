@@ -1,0 +1,5 @@
+{
+  "framework": null,
+  "buildCommand": "echo 'static prototype - no build step'",
+  "outputDirectory": "."
+}
