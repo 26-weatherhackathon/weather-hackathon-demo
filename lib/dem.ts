@@ -124,6 +124,15 @@ export const VILLAGE_SPOTS: VillageSpot[] = [
   { row: 4, col: 2, label: "논 마을" },
 ];
 
+/** 마을 세 곳을 잇는 길. 실제 지도처럼 보이도록 지형도 위에 도로로 그린다. */
+export const ROAD_PATH: { row: number; col: number }[] = [
+  { row: 1, col: 5 },
+  { row: 2, col: 4 },
+  { row: 3, col: 3 },
+  { row: 4, col: 2 },
+  { row: 5, col: 1 },
+];
+
 export type Outcome = { signal: "safe" | "warning" | "danger"; text: string };
 
 /** 선택 결과를 초등 눈높이 문구로 변환. PLAN.md 5.2.1 (2) 신호색 체계에 맞춘다. */

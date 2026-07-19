@@ -5,6 +5,8 @@ import {
   applyProtectionElevation,
   elevationToColor,
   isFlooded,
+  TERRAIN_COLORS,
+  ROAD_PATH,
   type Grid,
   type FlowDir,
   type Protection,
@@ -38,6 +40,11 @@ function directionToDeg(dRow: number, dCol: number): number {
   return angle + 90; // 기본 화살표(▲)가 위(북)를 향하므로 90도 보정
 }
 
+// 경사지·고지대 타일 중 일부에만 결정적으로(고정 시드) 나무를 놓아 자연스럽게 흩뿌린다.
+function hasTree(row: number, col: number): boolean {
+  return (row * 13 + col * 7) % 3 === 0;
+}
+
 export default function TerrainView({
   grid,
   flow,
@@ -55,6 +62,8 @@ export default function TerrainView({
     () => new Map(villageSpots.map((spot) => [`${spot.row}-${spot.col}`, spot])),
     [villageSpots]
   );
+
+  const roadSet = useMemo(() => new Set(ROAD_PATH.map((p) => `${p.row}-${p.col}`)), []);
 
   const floodedCount = useMemo(() => {
     if (!showRain) return 0;
@@ -102,6 +111,14 @@ export default function TerrainView({
             const dir = flow[row][col];
             const isSelected = selectedKey === key;
             const spot = spotMap.get(key);
+            const isRoad = roadSet.has(key);
+            const isRiver = showTerrain && color === TERRAIN_COLORS.low.color;
+            const isForest =
+              showTerrain &&
+              !spot &&
+              !isRoad &&
+              (color === TERRAIN_COLORS.slope.color || color === TERRAIN_COLORS.high.color) &&
+              hasTree(row, col);
 
             let signal: "safe" | "warning" | "danger" | null = null;
             if (protection === "shelter") signal = flooded ? "warning" : "safe";
@@ -152,6 +169,35 @@ export default function TerrainView({
                     transformOrigin: "center",
                   }}
                 />
+                {isRoad && (
+                  <div
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
+                    style={{
+                      width: TILE_W * 0.62,
+                      height: TILE_H * 0.32,
+                      background: "#B9A77C",
+                      transform: "translate(-50%, -50%) rotate(45deg) scaleY(0.58)",
+                    }}
+                  />
+                )}
+                {isRiver && (
+                  <span
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white/70"
+                    style={{ fontSize: 14 }}
+                    aria-hidden="true"
+                  >
+                    〜
+                  </span>
+                )}
+                {isForest && (
+                  <span
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[80%]"
+                    style={{ fontSize: 16 }}
+                    aria-hidden="true"
+                  >
+                    🌲
+                  </span>
+                )}
                 {flooded && (
                   <div
                     className="absolute inset-0 animate-pulse"
@@ -180,13 +226,22 @@ export default function TerrainView({
                     </svg>
                   </span>
                 )}
+                {spot && (
+                  <span
+                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[85%]"
+                    style={{ fontSize: 20 }}
+                    aria-hidden="true"
+                  >
+                    🏠
+                  </span>
+                )}
                 {signal && (
-                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[130%]">
+                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[175%]">
                     <SignalIcon signal={signal} />
                   </span>
                 )}
                 {spot && protection === "none" && (
-                  <span className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-[170%] flex-col items-center gap-1">
+                  <span className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-[230%] flex-col items-center gap-1">
                     <span className="relative flex h-3 w-3">
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
                       <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500" />
