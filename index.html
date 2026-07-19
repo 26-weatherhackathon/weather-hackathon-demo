@@ -163,24 +163,12 @@ function draw(t){
       ctx.drawImage(im,p.x-tw/2,p.y+TH*0.32-th2,tw,th2);}
     if(isFlooded(r,c)){const wp=iso(r,c,surfH(r,c,t)); const dh=(waterVisual-e)*ESTEP;
       walls(wp.x,wp.y,dh,'rgba(52,112,188,0.62)','rgba(30,80,150,0.72)');   // 물 옆면(깊을수록 진함)
-      diamond(wp.x,wp.y,waterColor(waterVisual-e),'rgba(200,235,255,0.45)');}} // 수면선 강조
-  ctx.lineCap='round';
-  for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
-    if(!isFlooded(r,c))continue;
-    const p=iso(r,c,surfH(r,c,t));
-    const T=[p.x,p.y-TH/2],R=[p.x+TW/2,p.y],B=[p.x,p.y+TH/2],L=[p.x-TW/2,p.y];
-    const foam=(v0,v1,ph)=>{const a=0.42+0.32*Math.sin(t/200+ph);
-      ctx.strokeStyle='rgba(255,255,255,'+a.toFixed(2)+')';ctx.lineWidth=2.5;
-      ctx.beginPath();ctx.moveTo(v0[0],v0[1]);ctx.lineTo(v1[0],v1[1]);ctx.stroke();};
-    if(!isFlooded(r,c+1))foam(R,B,p.x*0.05);
-    if(!isFlooded(r+1,c))foam(B,L,p.x*0.05+1.4);
-    if(!isFlooded(r-1,c))foam(T,R,p.y*0.05+0.7);
-    if(!isFlooded(r,c-1))foam(L,T,p.y*0.05+2.1);}
-  for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
-    if(isFlooded(r,c)){const p=iso(r,c,surfH(r,c,t));
-      const a=0.08+0.08*Math.sin(t/240+p.x*0.4+p.y*0.2);
-      ctx.strokeStyle='rgba(255,255,255,'+a.toFixed(2)+')';ctx.lineWidth=2;
-      ctx.beginPath();ctx.moveTo(p.x-TW*0.28,p.y-TH*0.14);ctx.lineTo(p.x,p.y-TH/2);ctx.stroke();}}
+      diamond(wp.x,wp.y,waterColor(waterVisual-e),'rgba(170,210,240,0.22)');
+      // 물가 거품: 앞쪽(마른 이웃과 닿는) 가장자리만 — 같은 패스라 앞 타일이 자연히 가림
+      ctx.lineCap='round';ctx.lineWidth=2.5;
+      ctx.strokeStyle='rgba(255,255,255,'+(0.28+0.20*Math.sin(t/220+wp.x*0.05)).toFixed(2)+')';
+      if(!isFlooded(r,c+1)){ctx.beginPath();ctx.moveTo(wp.x+TW/2,wp.y);ctx.lineTo(wp.x,wp.y+TH/2);ctx.stroke();}
+      if(!isFlooded(r+1,c)){ctx.beginPath();ctx.moveTo(wp.x,wp.y+TH/2);ctx.lineTo(wp.x-TW/2,wp.y);ctx.stroke();}}}
   ripples.forEach(rp=>{if(rp.t<0)return;ctx.strokeStyle='rgba(255,255,255,'+(1-rp.t)*0.7+')';ctx.lineWidth=2;
     ctx.beginPath();ctx.ellipse(rp.x,rp.y,rp.t*30,rp.t*15,0,0,7);ctx.stroke();});
   // 기상이
