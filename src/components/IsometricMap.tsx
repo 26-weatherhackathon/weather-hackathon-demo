@@ -44,11 +44,19 @@ interface SplashDroplet {
   life: number;
 }
 
-/** 월드 좌표(x, y, z=고도m)를 화면 좌표로 투영 */
+/**
+ * 월드 좌표(x, y, z=고도m)를 화면 좌표로 투영.
+ *
+ * 그리드를 (rx,ry)=(GRID_SIZE-y, x)로 치환한 뒤 원래 다이아몬드 공식에 넣어
+ * 시계방향 90도 회전한 시점을 만든다. TILE_W/TILE_H 비율은 그대로 유지되므로
+ * 다이아몬드가 찌그러지지 않는다(리뷰 피드백: 왜곡 없이 회전).
+ */
 function project(x: number, y: number, z: number): [number, number] {
+  const rx = GRID_SIZE - y;
+  const ry = x;
   return [
-    ORIGIN_X + (x - y) * (TILE_W / 2),
-    ORIGIN_Y + (x + y) * (TILE_H / 2) - z * HEIGHT_SCALE,
+    ORIGIN_X + (rx - ry) * (TILE_W / 2),
+    ORIGIN_Y + (rx + ry) * (TILE_H / 2) - z * HEIGHT_SCALE,
   ];
 }
 
@@ -196,11 +204,11 @@ export default function IsometricMap({
       octx.stroke();
     };
 
-    // 뎁스 소팅: 반대각선(x+y) 오름차순 → Back(우상단)에서 Front(좌하단)로
-    for (let d = 0; d <= 2 * (GRID_SIZE - 1); d++) {
-      const xStart = Math.max(0, d - (GRID_SIZE - 1));
-      const xEnd = Math.min(GRID_SIZE - 1, d);
-      for (let x = xStart; x <= xEnd; x++) drawTile(x, d - x);
+    // 뎁스 소팅: 회전 후 화면 깊이는 (x-y) 오름차순 → Back에서 Front로
+    for (let k = -(GRID_SIZE - 1); k <= GRID_SIZE - 1; k++) {
+      const xStart = Math.max(0, k);
+      const xEnd = Math.min(GRID_SIZE - 1, GRID_SIZE - 1 + k);
+      for (let x = xStart; x <= xEnd; x++) drawTile(x, x - k);
     }
 
     // 마을(보호구역) 금색 외곽선 표식
@@ -294,11 +302,11 @@ export default function IsometricMap({
 
       // ── 상승한 물(호수) 렌더: 뎁스 소팅 순서로 잠긴 셀의 수면을 그린다 ──
       const shimmer = 0.5 + 0.06 * Math.sin(now / 400);
-      for (let d = 0; d <= 2 * (GRID_SIZE - 1); d++) {
-        const xStart = Math.max(0, d - (GRID_SIZE - 1));
-        const xEnd = Math.min(GRID_SIZE - 1, d);
+      for (let k = -(GRID_SIZE - 1); k <= GRID_SIZE - 1; k++) {
+        const xStart = Math.max(0, k);
+        const xEnd = Math.min(GRID_SIZE - 1, GRID_SIZE - 1 + k);
         for (let x = xStart; x <= xEnd; x++) {
-          const y = d - x;
+          const y = x - k;
           const depth = waterDepth(x, y, lvl);
           if (depth <= 0.05) continue;
           const [ax, ay] = project(x, y, lvl);
@@ -489,7 +497,7 @@ export default function IsometricMap({
           project(x, y + 1, alt),
         ];
         if (pointInQuad(px, py, q)) {
-          const sc = x + y;
+          const sc = x - y;
           if (sc > bestScore) {
             bestScore = sc;
             best = [x, y];
