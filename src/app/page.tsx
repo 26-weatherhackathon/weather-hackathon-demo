@@ -117,6 +117,8 @@ export default function Home() {
                   <h2 className="mt-1 text-2xl font-bold text-white">
                     {g.result.flooded === 0
                       ? "완벽 방어! 🎉"
+                      : g.result.evacuationComplete
+                      ? "건물은 잠겼지만 사람은 모두 안전해요"
                       : g.result.stars >= 1
                       ? "마을을 지켰어요!"
                       : "마을이 잠겼어요 😢"}
@@ -124,6 +126,11 @@ export default function Home() {
                   <div className="mt-3 flex justify-center">
                     <Stars n={g.result.stars} />
                   </div>
+                  {g.result.flooded > 0 && g.result.evacuationComplete && (
+                    <p className="mt-2 text-xs font-medium text-emerald-300">
+                      🛟 빗물 저류조로 주민 대피 완료 · 인명 피해 없음
+                    </p>
+                  )}
                   <p className="mt-3 text-sm text-white/70">
                     침수된 건물 {g.result.flooded} / {g.totalHouses}채
                     <br />

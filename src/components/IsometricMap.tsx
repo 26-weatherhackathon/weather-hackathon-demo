@@ -351,7 +351,7 @@ export default function IsometricMap({
         const [px, py] = project(x + 0.5, y + 0.5, top);
         const depth = waterDepth(x, y, lvl);
         const flooded = depth >= FLOOD_THRESHOLD;
-        ctx.font = big ? "18px sans-serif" : "14px sans-serif";
+        ctx.font = big ? "18px sans-serif" : "17px sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(emoji, px, py - 8);

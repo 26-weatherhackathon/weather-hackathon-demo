@@ -157,20 +157,25 @@ export interface ProtectedZone {
 
 /**
  * 지켜야 할 마을(집·학교)의 위치를 반환한다.
- * 좌하단 저지대 범람원의 결정적 좌표(시드 고정 지형 기준)를 사용한다.
+ * 결정적 좌표(시드 고정 지형 기준)를 저지대/중지대/고지대에 3채씩 분산 배치해,
+ * 수위가 오를 때 고도에 따라 어떤 집부터 잠기는지 비교하며 배울 수 있게 한다.
  */
 export function getProtectedZone(_grid: TerrainGrid): ProtectedZone {
   const houses: TilePos[] = [
-    { x: 4, y: 22 },
+    // 저지대(하천 인근, 약 11~12m) — 가장 먼저 잠기는 집
+    { x: 0, y: 23 },
+    { x: 2, y: 24 },
+    { x: 13, y: 29 },
+    // 중지대(약 14~16m) — 수위가 최고점에 가까워져야 위험해지는 집
     { x: 5, y: 22 },
-    { x: 6, y: 22 },
-    { x: 4, y: 23 },
-    { x: 6, y: 23 },
-    { x: 4, y: 24 },
-    { x: 5, y: 24 },
-    { x: 6, y: 24 },
+    { x: 8, y: 26 },
+    // 고지대(약 21~26m) — 물이 닿지 않는 안전한 집
+    { x: 13, y: 19 },
+    { x: 13, y: 22 },
+    { x: 16, y: 23 },
   ];
-  const school: TilePos = { x: 5, y: 23 };
+  // 학교도 중지대에 두어, 낮은 집보다는 안전하지만 대비가 필요한 위치로 배치한다.
+  const school: TilePos = { x: 7, y: 23 };
   return { houses, school, all: [...houses, school] };
 }
 

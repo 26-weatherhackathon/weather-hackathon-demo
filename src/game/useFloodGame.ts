@@ -65,7 +65,9 @@ export interface FloodGame {
   floodThreshold: number;
   floodedNow: number;
   totalHouses: number;
-  result: { stars: number; flooded: number } | null;
+  /** 빗물 저류조를 1개 이상 설치했는지(주민 대피 방송·비상 대응 체계 가동으로 간주) */
+  evacuationComplete: boolean;
+  result: { stars: number; flooded: number; evacuationComplete: boolean } | null;
   setTool: (t: ToolId) => void;
   place: (x: number, y: number) => void;
   start: () => void;
@@ -145,8 +147,9 @@ export function useFloodGame(): FloodGame {
   const peakFlooded = floodedAt(peakLevel);
   const stars =
     peakFlooded === 0 ? 3 : peakFlooded <= 2 ? 2 : peakFlooded <= 4 ? 1 : 0;
+  const evacuationComplete = Object.values(placed).some((id) => id === "basin");
   const result =
-    phase === "result" ? { stars, flooded: peakFlooded } : null;
+    phase === "result" ? { stars, flooded: peakFlooded, evacuationComplete } : null;
 
   const place = useCallback(
     (x: number, y: number) => {
@@ -208,6 +211,7 @@ export function useFloodGame(): FloodGame {
     floodThreshold: FLOOD_THRESHOLD,
     floodedNow,
     totalHouses: zone.all.length,
+    evacuationComplete,
     result,
     setTool,
     place,
