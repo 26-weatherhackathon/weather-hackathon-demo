@@ -21,7 +21,6 @@
   .speech{position:absolute;left:50%;top:60px;transform:translateX(-50%);z-index:8;
     background:#fff;color:#2b4a63;font-weight:700;font-size:17px;padding:11px 22px;
     border-radius:20px;box-shadow:0 6px 16px rgba(40,90,140,.2);white-space:nowrap;max-width:92%;}
-  #lottieRain{position:absolute;inset:0;z-index:5;pointer-events:none;}
   #lottieSpark{position:absolute;left:50%;top:100px;width:440px;height:440px;
     transform:translateX(-50%);z-index:7;pointer-events:none;opacity:0;transition:opacity .2s;}
   canvas{position:absolute;top:78px;left:50%;transform:translateX(-50%);z-index:4;cursor:pointer;}
@@ -46,7 +45,6 @@
     </div>
     <div class="speech" id="speech">기상이를 안전한 곳으로 옮겨요. 칸을 눌러보세요!</div>
     <canvas id="cv" width="880" height="520"></canvas>
-    <div id="lottieRain"></div>
     <div id="lottieSpark"></div>
     <div class="legend">
       <span class="sw" style="background:#8D6E4A"></span>높은 곳<br>
@@ -84,17 +82,17 @@ let ripples=[], lastKey='';
 const imgs={};
 ['rain','danger','happy'].forEach(k=>{const i=new Image();i.src='img/'+k+'.png';imgs[k]=i;});
 
-// ---- Lottie (비/반짝이) ----
-let rainAnim=null, sparkleAnim=null;
-const sparkWrap=$('lottieSpark');
+// ---- 비 (캔버스 파티클: 자연스러운 낙하) ----
+const drops=[];
+for(let i=0;i<110;i++)drops.push({x:Math.random()*cv.width,y:Math.random()*cv.height,
+  len:9+Math.random()*14, spd:8+Math.random()*7, a:0.18+Math.random()*0.28});
+
+// ---- Lottie 반짝이 (대피 성공) ----
+let sparkleAnim=null; const sparkWrap=$('lottieSpark');
 if(window.lottie){
-  rainAnim=lottie.loadAnimation({container:$('lottieRain'),renderer:'svg',loop:true,autoplay:false,
-    path:'lottie/rain.json',rendererSettings:{preserveAspectRatio:'xMidYMid slice'}});
   sparkleAnim=lottie.loadAnimation({container:sparkWrap,renderer:'svg',loop:false,autoplay:false,path:'lottie/sparkle.json'});
   sparkleAnim.addEventListener('complete',()=>{sparkWrap.style.opacity='0';});
 }
-function startRain(){if(rainAnim)rainAnim.play();}
-function stopRain(){if(rainAnim)rainAnim.stop();}
 function playSparkle(){if(sparkleAnim){sparkWrap.style.opacity='1';sparkleAnim.goToAndPlay(0,true);}}
 
 function heightColor(e){
@@ -117,6 +115,7 @@ function sideWalls(x,y,e,base){const h=e*ESTEP;if(h<=0)return;
   ctx.beginPath();ctx.moveTo(x+TW/2,y);ctx.lineTo(x,y+TH/2);ctx.lineTo(x,y+TH/2+h);ctx.lineTo(x+TW/2,y+h);ctx.closePath();ctx.fill();}
 function pointInTile(mx,my,r,c){const p=iso(r,c,elev[r][c]);
   return Math.abs(mx-p.x)/(TW/2)+Math.abs(my-p.y)/(TH/2)<=1;}
+function isFlooded(r,c){return r>=0&&r<N&&c>=0&&c<N&&elev[r][c]<waterVisual-0.02;}
 
 cv.addEventListener('click',ev=>{
   const rect=cv.getBoundingClientRect();
@@ -130,25 +129,46 @@ function moveHero(r,c){if(r===hero.r&&c===hero.c)return;
 function splash(r,c){const p=iso(r,c,waterVisual);
   for(let i=0;i<3;i++)ripples.push({x:p.x,y:p.y,t:-i*0.15});}
 
-function waterColor(depth){
+function waterColor(depth,extraA){
   const tt=Math.min(1,depth/3.5);
   const r=Math.round(150+(28-150)*tt), g=Math.round(200+(86-200)*tt), b=Math.round(235+(150-235)*tt);
-  return 'rgba('+r+','+g+','+b+','+(0.40+0.24*tt).toFixed(2)+')';
+  return 'rgba('+r+','+g+','+b+','+(0.30+0.20*tt+(extraA||0)).toFixed(2)+')';
 }
+// 수면 높이(출렁임): 위치별로 미세하게 다르게 → 평평한 판때기 느낌 제거
+function surfH(r,c,t){return waterVisual + Math.sin((r+c)*0.85+t/280)*0.05 + Math.sin((r-c)*0.6 - t/360)*0.03;}
+
 function draw(t){
   ctx.clearRect(0,0,cv.width,cv.height);
+  // 지형
   for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
     const e=elev[r][c],p=iso(r,c,e);
     sideWalls(p.x,p.y,e,heightColor(e));
-    diamond(p.x,p.y,heightColor(e),'rgba(255,255,255,.30)');}
-  // 물 — 깊이별 반투명(잠긴 땅이 비쳐 보임) + 표면 반짝임, 격자선 없음
-  const wob=Math.sin(t/440)*1.6;
+    diamond(p.x,p.y,heightColor(e),'rgba(255,255,255,.28)');}
+  // 물: 반투명 + 출렁이는 수면
   for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
-    if(elev[r][c]<waterVisual-0.02){const p=iso(r,c,waterVisual);
-      diamond(p.x,p.y+wob,waterColor(waterVisual-elev[r][c]),null);
-      const a=0.10+0.09*Math.sin(t/260+p.x*0.4+p.y*0.2);
+    if(isFlooded(r,c)){const p=iso(r,c,surfH(r,c,t));
+      diamond(p.x,p.y,waterColor(waterVisual-elev[r][c]),null);}}
+  // 물가 거품(shoreline): 물이 마른 땅과 만나는 가장자리에 흰 물결선
+  ctx.lineCap='round';
+  for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
+    if(!isFlooded(r,c))continue;
+    const p=iso(r,c,surfH(r,c,t));
+    const T=[p.x,p.y-TH/2],R=[p.x+TW/2,p.y],B=[p.x,p.y+TH/2],L=[p.x-TW/2,p.y];
+    const foam=(v0,v1,ph)=>{const a=0.45+0.35*Math.sin(t/200+ph);
+      ctx.strokeStyle='rgba(255,255,255,'+a.toFixed(2)+')';ctx.lineWidth=3;
+      ctx.beginPath();ctx.moveTo(v0[0],v0[1]);ctx.lineTo(v1[0],v1[1]);ctx.stroke();};
+    if(!isFlooded(r,c+1))foam(R,B,p.x*0.05);       // 앞-오른쪽
+    if(!isFlooded(r+1,c))foam(B,L,p.x*0.05+1.4);   // 앞-왼쪽
+    if(!isFlooded(r-1,c))foam(T,R,p.y*0.05+0.7);   // 뒤-오른쪽
+    if(!isFlooded(r,c-1))foam(L,T,p.y*0.05+2.1);   // 뒤-왼쪽
+  }
+  // 표면 반짝임
+  for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
+    if(isFlooded(r,c)){const p=iso(r,c,surfH(r,c,t));
+      const a=0.08+0.08*Math.sin(t/240+p.x*0.4+p.y*0.2);
       ctx.strokeStyle='rgba(255,255,255,'+a.toFixed(2)+')';ctx.lineWidth=2;
-      ctx.beginPath();ctx.moveTo(p.x-TW*0.30,p.y+wob-TH*0.16);ctx.lineTo(p.x,p.y+wob-TH/2);ctx.stroke();}}
+      ctx.beginPath();ctx.moveTo(p.x-TW*0.28,p.y-TH*0.14);ctx.lineTo(p.x,p.y-TH/2);ctx.stroke();}}
+  // 파문
   ripples.forEach(rp=>{if(rp.t<0)return;ctx.strokeStyle='rgba(255,255,255,'+(1-rp.t)*0.7+')';ctx.lineWidth=2;
     ctx.beginPath();ctx.ellipse(rp.x,rp.y,rp.t*34,rp.t*17,0,0,7);ctx.stroke();});
   // 기상이 (원본 1:1 비율 유지)
@@ -162,13 +182,18 @@ function draw(t){
   const img=flooded?imgs.danger:(heroE>=4?imgs.happy:imgs.rain);
   if(img&&img.complete){
     const th=124, ratio=(img.naturalWidth&&img.naturalHeight)?img.naturalWidth/img.naturalHeight:1;
-    const h=th, w=th*ratio;
-    ctx.drawImage(img, hx-w/2, hy-h+14+(hopT<1?0:bob), w, h);
+    ctx.drawImage(img, hx-(th*ratio)/2, hy-th+14+(hopT<1?0:bob), th*ratio, th);
   }
+  // 비 (지형 위에 그림)
+  if(raining){ctx.strokeStyle='rgba(150,190,225,.55)';
+    drops.forEach(d=>{ctx.globalAlpha=d.a;ctx.lineWidth=1.6;
+      ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(d.x-3,d.y+d.len);ctx.stroke();});
+    ctx.globalAlpha=1;}
 }
 function loop(t){
   if(waterVisual<targetWater)waterVisual=Math.min(targetWater,waterVisual+0.012);
   ripples.forEach(r=>r.t+=0.03); ripples=ripples.filter(r=>r.t<1);
+  if(raining)drops.forEach(d=>{d.y+=d.spd;d.x-=1.1;if(d.y>cv.height){d.y=-d.len;d.x=Math.random()*cv.width;}});
   if(hopT<1){hopT=Math.min(1,hopT+0.06);
     if(hopT>=1){const fl=elev[hero.r][hero.c]<waterVisual-0.02;
       if(fl)splash(hero.r,hero.c);
@@ -188,9 +213,9 @@ function updateStatus(){
   const key=b+msg;
   if(key!==lastKey){lastKey=key;$('badge').textContent=b;$('badge').style.background=col;$('speech').textContent=msg;}
 }
-$('btnRain').onclick=()=>{raining=true;startRain();targetWater=Math.min(5,targetWater+1);
+$('btnRain').onclick=()=>{raining=true;targetWater=Math.min(5,targetWater+1);
   $('rainAmt').textContent='시간당 빗물 '+Math.round(targetWater*18)+'mm';};
-$('btnReset').onclick=()=>{targetWater=0;waterVisual=0;raining=false;stopRain();ripples=[];
+$('btnReset').onclick=()=>{targetWater=0;waterVisual=0;raining=false;ripples=[];
   hero={r:3,c:3};hopFrom={r:3,c:3};hopT=1;$('rainAmt').textContent='맑음';lastKey='';sparkWrap.style.opacity='0';};
 
 let ready=setInterval(()=>{if(imgs.rain.complete){clearInterval(ready);requestAnimationFrame(loop);}},60);
