@@ -21,6 +21,9 @@ export default function RootLayout({
           crossOrigin="anonymous"
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
         />
+        {/* Lottie 재생기 (반짝이 등 모션 효과) */}
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="https://cdn.jsdelivr.net/npm/lottie-web@5.12.2/build/player/lottie.min.js" />
       </head>
       <body>{children}</body>
     </html>

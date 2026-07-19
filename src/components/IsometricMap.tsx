@@ -139,6 +139,12 @@ export default function IsometricMap({
     canvas.height = Math.floor(LOGICAL_H * dpr);
     ctx.scale(dpr, dpr);
 
+    // 마을 건물 스프라이트(생성 에셋) 로드
+    const houseImg = new Image();
+    houseImg.src = "/img/assets/house.png";
+    const schoolImg = new Image();
+    schoolImg.src = "/img/assets/school.png";
+
     // ── 정적 레이어(폭풍 하늘 + 지형 + 마을 표식)를 오프스크린에 1회 렌더 ──
     const off = document.createElement("canvas");
     off.width = Math.floor(LOGICAL_W * dpr);
@@ -148,9 +154,9 @@ export default function IsometricMap({
     octx.scale(dpr, dpr);
 
     const sky = octx.createLinearGradient(0, 0, 0, LOGICAL_H);
-    sky.addColorStop(0, "#12203a");
-    sky.addColorStop(0.55, "#0d1830");
-    sky.addColorStop(1, "#080f20");
+    sky.addColorStop(0, "#e8f5ff");
+    sky.addColorStop(0.55, "#d5ecfb");
+    sky.addColorStop(1, "#c6e4f7");
     octx.fillStyle = sky;
     octx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
@@ -167,7 +173,7 @@ export default function IsometricMap({
       const [c0x, c0y] = project(x + 1, y + 1, 0);
       const [d0x, d0y] = project(x, y + 1, 0);
 
-      const right = shade(color, 0.78);
+      const right = shade(color, 0.88);
       octx.fillStyle = right;
       octx.strokeStyle = right;
       octx.lineWidth = 1;
@@ -180,7 +186,7 @@ export default function IsometricMap({
       octx.fill();
       octx.stroke();
 
-      const left = shade(color, 0.6);
+      const left = shade(color, 0.75);
       octx.fillStyle = left;
       octx.strokeStyle = left;
       octx.beginPath();
@@ -359,14 +365,21 @@ export default function IsometricMap({
         const [px, py] = project(x + 0.5, y + 0.5, top);
         const depth = waterDepth(x, y, lvl);
         const flooded = depth >= FLOOD_THRESHOLD;
-        ctx.font = big ? "18px sans-serif" : "14px sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(emoji, px, py - 8);
-        // 상태 점
+        const sprite = big ? schoolImg : houseImg;
+        if (sprite.complete && sprite.naturalWidth > 0) {
+          const w = big ? 52 : 38;
+          const h = (w * sprite.naturalHeight) / sprite.naturalWidth;
+          ctx.drawImage(sprite, px - w / 2, py - h + 6, w, h);
+        } else {
+          ctx.font = big ? "18px sans-serif" : "14px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(emoji, px, py - 8);
+        }
+        // 상태 점(안전=초록 / 침수=빨강)
         ctx.beginPath();
-        ctx.arc(px, py + 4, 3, 0, Math.PI * 2);
-        ctx.fillStyle = flooded ? "#ff5a5a" : "#4ade80";
+        ctx.arc(px, py + 5, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = flooded ? "#E53935" : "#43A047";
         ctx.fill();
       };
       for (const { x, y } of zone.houses) drawMarker(x, y, "🏠", false);
@@ -374,7 +387,7 @@ export default function IsometricMap({
 
       // ── 비 파티클 ──
       ctx.lineWidth = 1;
-      ctx.strokeStyle = "rgba(174, 206, 255, 0.55)";
+      ctx.strokeStyle = "rgba(90, 140, 200, 0.55)";
       for (const p of rain) {
         p.x += p.vx * dt;
         p.y += p.vy * dt;
@@ -426,7 +439,7 @@ export default function IsometricMap({
         }
         const [sx, sy] = project(s.x, s.y, s.z);
         const a = Math.max(0, Math.min(1, s.life / 0.5)) * 0.8;
-        ctx.fillStyle = `rgba(200, 226, 255, ${a})`;
+        ctx.fillStyle = `rgba(120, 165, 215, ${a})`;
         ctx.fillRect(sx - 1, sy - 1, 2, 2);
       }
 

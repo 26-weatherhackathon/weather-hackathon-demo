@@ -33,10 +33,15 @@ const config: Config = {
           "60%": { transform: "scale(1.12)" },
           "100%": { transform: "scale(1)" },
         },
+        bob: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-8px)" },
+        },
       },
       animation: {
         "pulse-glow": "pulse-glow 1.8s ease-in-out infinite",
         pop: "pop 0.4s cubic-bezier(0.3,1.6,0.5,1)",
+        bob: "bob 2.4s ease-in-out infinite",
       },
     },
   },
