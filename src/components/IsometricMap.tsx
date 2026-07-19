@@ -1,35 +1,38 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef, type MouseEvent } from "react";
+import { GRID_SIZE, type TerrainGrid, type ProtectedZone } from "@/utils/terrain";
 import {
-  GRID_SIZE,
-  generateTerrainGrid,
-  type TerrainGrid,
-} from "@/utils/terrain";
+  STRUCTURES,
+  barrierOf,
+  isPump,
+  type ToolId,
+} from "@/game/structures";
 
-// ── 렌더링 튜닝 상수 ──────────────────────────────────────────────
-const LOGICAL_W = 860; // 논리 캔버스 폭(px)
-const LOGICAL_H = 620; // 논리 캔버스 높이(px)
-const TILE_W = 26; // 아이소메트릭 타일 폭
-const TILE_H = 13; // 아이소메트릭 타일 높이(2:1 비율)
-const HEIGHT_SCALE = 0.9; // 고도(m) → 화면 픽셀 변환 배율
-const ORIGIN_Y = 70; // 상단 여백
-const RAIN_COUNT = 260; // 동시 빗방울 수
-const TRAIL = 0.14; // 빗줄기 잔상 길이(초)
-const GRAVITY = 220; // 스플래시 중력(스타일라이즈)
-const MAX_SPLASH = 480; // 스플래시 입자 상한(성능 보호)
-const LIGHTNING_CHANCE = 0.004; // 프레임당 번개 발생 확률
-const LIGHTNING_DURATION = 0.32; // 번개 지속 시간(초)
+// ── 렌더링 튜닝 상수 ─────────────────────────────────────────────
+const LOGICAL_W = 860;
+const LOGICAL_H = 620;
+const TILE_W = 26;
+const TILE_H = 13;
+const HEIGHT_SCALE = 0.9;
+const ORIGIN_X = LOGICAL_W / 2;
+const ORIGIN_Y = 70;
+const RAIN_COUNT = 240;
+const TRAIL = 0.14;
+const GRAVITY = 220;
+const MAX_SPLASH = 460;
+const LIGHTNING_CHANCE = 0.004;
+const LIGHTNING_DURATION = 0.32;
+const FLOOD_THRESHOLD = 0.3;
 
 interface RainDrop {
-  x: number; // 격자 좌표
+  x: number;
   y: number;
-  z: number; // 고도(m)
+  z: number;
   vx: number;
   vy: number;
   vz: number;
 }
-
 interface SplashDroplet {
   x: number;
   y: number;
@@ -38,10 +41,18 @@ interface SplashDroplet {
   vy: number;
   vz: number;
   ground: number;
-  life: number; // 남은 수명(초)
+  life: number;
 }
 
-/** 16진 색상을 factor(0~1)만큼 어둡게 만든 rgb 문자열을 반환한다. */
+/** 월드 좌표(x, y, z=고도m)를 화면 좌표로 투영 */
+function project(x: number, y: number, z: number): [number, number] {
+  return [
+    ORIGIN_X + (x - y) * (TILE_W / 2),
+    ORIGIN_Y + (x + y) * (TILE_H / 2) - z * HEIGHT_SCALE,
+  ];
+}
+
+/** 16진 색상을 factor(0~1)만큼 어둡게 */
 function shade(hex: string, factor: number): string {
   const n = parseInt(hex.slice(1), 16);
   const r = Math.round(((n >> 16) & 255) * factor);
@@ -50,14 +61,64 @@ function shade(hex: string, factor: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-interface IsometricMapProps {
-  className?: string;
+function cross(ax: number, ay: number, bx: number, by: number): number {
+  return ax * by - ay * bx;
 }
 
-export default function IsometricMap({ className }: IsometricMapProps) {
+/** 볼록 사각형(정점 순서대로) 내부 점 판정 */
+function pointInQuad(px: number, py: number, q: [number, number][]): boolean {
+  let sign = 0;
+  for (let i = 0; i < 4; i++) {
+    const [x1, y1] = q[i];
+    const [x2, y2] = q[(i + 1) % 4];
+    const c = cross(x2 - x1, y2 - y1, px - x1, py - y1);
+    if (Math.abs(c) < 1e-6) continue;
+    const s = c > 0 ? 1 : -1;
+    if (sign === 0) sign = s;
+    else if (s !== sign) return false;
+  }
+  return true;
+}
+
+interface IsometricMapProps {
+  grid: TerrainGrid;
+  zone: ProtectedZone;
+  placed: Record<string, ToolId>;
+  level: number;
+  tool: ToolId;
+  interactive: boolean;
+  onPlace: (x: number, y: number) => void;
+}
+
+export default function IsometricMap({
+  grid,
+  zone,
+  placed,
+  level,
+  tool,
+  interactive,
+  onPlace,
+}: IsometricMapProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // 지형은 고정 시드로 한 번만 생성(프레임마다 재생성하지 않음).
-  const grid = useMemo<TerrainGrid>(() => generateTerrainGrid(), []);
+
+  // 애니메이션 루프가 최신 상태를 읽도록 ref 로 보관(루프 재시작 방지)
+  const placedRef = useRef(placed);
+  const levelRef = useRef(level);
+  const toolRef = useRef(tool);
+  const interactiveRef = useRef(interactive);
+  const hoverRef = useRef<[number, number] | null>(null);
+  useEffect(() => {
+    placedRef.current = placed;
+  }, [placed]);
+  useEffect(() => {
+    levelRef.current = level;
+  }, [level]);
+  useEffect(() => {
+    toolRef.current = tool;
+  }, [tool]);
+  useEffect(() => {
+    interactiveRef.current = interactive;
+  }, [interactive]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -66,55 +127,41 @@ export default function IsometricMap({ className }: IsometricMapProps) {
     if (!ctx) return;
 
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const W = LOGICAL_W;
-    const H = LOGICAL_H;
-    canvas.width = Math.floor(W * dpr);
-    canvas.height = Math.floor(H * dpr);
+    canvas.width = Math.floor(LOGICAL_W * dpr);
+    canvas.height = Math.floor(LOGICAL_H * dpr);
     ctx.scale(dpr, dpr);
 
-    const originX = W / 2;
-
-    // 월드 좌표(x, y, z)를 화면 좌표로 투영하는 아이소메트릭 프로젝션
-    const project = (x: number, y: number, z: number): [number, number] => {
-      const sx = originX + (x - y) * (TILE_W / 2);
-      const sy = ORIGIN_Y + (x + y) * (TILE_H / 2) - z * HEIGHT_SCALE;
-      return [sx, sy];
-    };
-
-    // ── 정적 레이어(폭풍 하늘 + 지형)를 오프스크린 캔버스에 1회 렌더링 ──
+    // ── 정적 레이어(폭풍 하늘 + 지형 + 마을 표식)를 오프스크린에 1회 렌더 ──
     const off = document.createElement("canvas");
-    off.width = Math.floor(W * dpr);
-    off.height = Math.floor(H * dpr);
+    off.width = Math.floor(LOGICAL_W * dpr);
+    off.height = Math.floor(LOGICAL_H * dpr);
     const octx = off.getContext("2d");
     if (!octx) return;
     octx.scale(dpr, dpr);
 
-    // 폭풍 하늘 그래디언트
-    const sky = octx.createLinearGradient(0, 0, 0, H);
+    const sky = octx.createLinearGradient(0, 0, 0, LOGICAL_H);
     sky.addColorStop(0, "#12203a");
     sky.addColorStop(0.55, "#0d1830");
     sky.addColorStop(1, "#080f20");
     octx.fillStyle = sky;
-    octx.fillRect(0, 0, W, H);
+    octx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
-    // 지형 타일(고도만큼 돌출된 기둥)을 그린다.
     const drawTile = (x: number, y: number) => {
       const cell = grid[y][x];
       const alt = cell.altitude;
       const color = cell.color;
 
-      const [ax, ay] = project(x, y, alt); // 뒤(back)
-      const [bx, by] = project(x + 1, y, alt); // 오른쪽
-      const [cx, cy] = project(x + 1, y + 1, alt); // 앞(front)
-      const [dx, dy] = project(x, y + 1, alt); // 왼쪽
+      const [ax, ay] = project(x, y, alt);
+      const [bx, by] = project(x + 1, y, alt);
+      const [cx, cy] = project(x + 1, y + 1, alt);
+      const [dx, dy] = project(x, y + 1, alt);
       const [b0x, b0y] = project(x + 1, y, 0);
       const [c0x, c0y] = project(x + 1, y + 1, 0);
       const [d0x, d0y] = project(x, y + 1, 0);
 
-      // 오른쪽 측면(약간 어둡게)
-      const rightFace = shade(color, 0.78);
-      octx.fillStyle = rightFace;
-      octx.strokeStyle = rightFace;
+      const right = shade(color, 0.78);
+      octx.fillStyle = right;
+      octx.strokeStyle = right;
       octx.lineWidth = 1;
       octx.beginPath();
       octx.moveTo(bx, by);
@@ -125,10 +172,9 @@ export default function IsometricMap({ className }: IsometricMapProps) {
       octx.fill();
       octx.stroke();
 
-      // 왼쪽 측면(가장 어둡게)
-      const leftFace = shade(color, 0.6);
-      octx.fillStyle = leftFace;
-      octx.strokeStyle = leftFace;
+      const left = shade(color, 0.6);
+      octx.fillStyle = left;
+      octx.strokeStyle = left;
       octx.beginPath();
       octx.moveTo(dx, dy);
       octx.lineTo(cx, cy);
@@ -138,7 +184,6 @@ export default function IsometricMap({ className }: IsometricMapProps) {
       octx.fill();
       octx.stroke();
 
-      // 윗면(원색)
       octx.fillStyle = color;
       octx.strokeStyle = color;
       octx.beginPath();
@@ -151,25 +196,42 @@ export default function IsometricMap({ className }: IsometricMapProps) {
       octx.stroke();
     };
 
-    // 뎁스 소팅: 우상단(Back)에서 좌하단(Front)으로, 반대각선(x+y) 오름차순 순회
+    // 뎁스 소팅: 반대각선(x+y) 오름차순 → Back(우상단)에서 Front(좌하단)로
     for (let d = 0; d <= 2 * (GRID_SIZE - 1); d++) {
       const xStart = Math.max(0, d - (GRID_SIZE - 1));
       const xEnd = Math.min(GRID_SIZE - 1, d);
-      for (let x = xStart; x <= xEnd; x++) {
-        const y = d - x;
-        drawTile(x, y);
-      }
+      for (let x = xStart; x <= xEnd; x++) drawTile(x, d - x);
     }
 
-    // ── 동적 파티클 상태 ──────────────────────────────────────────
+    // 마을(보호구역) 금색 외곽선 표식
+    const outlineTop = (x: number, y: number, c: string, w: number) => {
+      const alt = grid[y][x].altitude;
+      octx.strokeStyle = c;
+      octx.lineWidth = w;
+      octx.beginPath();
+      const p0 = project(x, y, alt);
+      const p1 = project(x + 1, y, alt);
+      const p2 = project(x + 1, y + 1, alt);
+      const p3 = project(x, y + 1, alt);
+      octx.moveTo(p0[0], p0[1]);
+      octx.lineTo(p1[0], p1[1]);
+      octx.lineTo(p2[0], p2[1]);
+      octx.lineTo(p3[0], p3[1]);
+      octx.closePath();
+      octx.stroke();
+    };
+    for (const { x, y } of zone.houses) outlineTop(x, y, "rgba(255,214,102,0.9)", 1.5);
+    outlineTop(zone.school.x, zone.school.y, "rgba(255,180,80,1)", 2.5);
+
+    // ── 비/스플래시 파티클 초기화 ──
     const spawnRain = (drop?: RainDrop): RainDrop => {
       const base: RainDrop = {
         x: Math.random() * GRID_SIZE,
         y: Math.random() * GRID_SIZE,
         z: 90 + Math.random() * 90,
-        vx: -2.2, // 우 → 좌(화면 왼쪽으로 드리프트)
-        vy: 3.0, // 앞쪽(화면 아래)로 드리프트
-        vz: -78, // 낙하
+        vx: -2.2,
+        vy: 3.0,
+        vz: -78,
       };
       if (drop) {
         Object.assign(drop, base);
@@ -177,11 +239,9 @@ export default function IsometricMap({ className }: IsometricMapProps) {
       }
       return base;
     };
-
     const rain: RainDrop[] = [];
     for (let i = 0; i < RAIN_COUNT; i++) rain.push(spawnRain());
     const splashes: SplashDroplet[] = [];
-
     const spawnSplash = (x: number, y: number, ground: number) => {
       const n = 4 + Math.floor(Math.random() * 4);
       for (let i = 0; i < n; i++) {
@@ -200,6 +260,26 @@ export default function IsometricMap({ className }: IsometricMapProps) {
       }
     };
 
+    // 셀 효과 높이/침수 계산
+    const effHeight = (x: number, y: number) => {
+      const id = placedRef.current[`${x},${y}`];
+      return grid[y][x].altitude + barrierOf(id);
+    };
+    const waterDepth = (x: number, y: number, lvl: number) => {
+      const id = placedRef.current[`${x},${y}`];
+      if (id && isPump(id)) return 0;
+      return Math.max(0, lvl - effHeight(x, y));
+    };
+
+    // 물 색(수심 → 얕음~깊음)
+    const waterColor = (depth: number, alpha: number) => {
+      const t = Math.max(0, Math.min(1, depth / 6));
+      const r = Math.round(90 - 60 * t);
+      const g = Math.round(150 - 70 * t);
+      const b = Math.round(210 - 50 * t);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
+
     let lightning = 0;
     let last = performance.now();
     let raf = 0;
@@ -207,30 +287,100 @@ export default function IsometricMap({ className }: IsometricMapProps) {
     const frame = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
+      const lvl = levelRef.current;
 
-      // 정적 레이어 blit
-      ctx.clearRect(0, 0, W, H);
-      ctx.drawImage(off, 0, 0, W, H);
+      ctx.clearRect(0, 0, LOGICAL_W, LOGICAL_H);
+      ctx.drawImage(off, 0, 0, LOGICAL_W, LOGICAL_H);
 
-      // 비 파티클 업데이트 & 렌더링
+      // ── 상승한 물(호수) 렌더: 뎁스 소팅 순서로 잠긴 셀의 수면을 그린다 ──
+      const shimmer = 0.5 + 0.06 * Math.sin(now / 400);
+      for (let d = 0; d <= 2 * (GRID_SIZE - 1); d++) {
+        const xStart = Math.max(0, d - (GRID_SIZE - 1));
+        const xEnd = Math.min(GRID_SIZE - 1, d);
+        for (let x = xStart; x <= xEnd; x++) {
+          const y = d - x;
+          const depth = waterDepth(x, y, lvl);
+          if (depth <= 0.05) continue;
+          const [ax, ay] = project(x, y, lvl);
+          const [bx, by] = project(x + 1, y, lvl);
+          const [cx, cy] = project(x + 1, y + 1, lvl);
+          const [dx, dy] = project(x, y + 1, lvl);
+          ctx.fillStyle = waterColor(depth, shimmer);
+          ctx.beginPath();
+          ctx.moveTo(ax, ay);
+          ctx.lineTo(bx, by);
+          ctx.lineTo(cx, cy);
+          ctx.lineTo(dx, dy);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+
+      // ── 설치된 시설 렌더 ──
+      const entries = Object.entries(placedRef.current);
+      for (const [key, id] of entries) {
+        const [sx, sy] = key.split(",").map(Number);
+        if (Number.isNaN(sx) || Number.isNaN(sy)) continue;
+        const def = STRUCTURES[id];
+        const z = grid[sy][sx].altitude + def.barrier;
+        const [px, py] = project(sx + 0.5, sy + 0.5, z);
+        // 받침
+        ctx.fillStyle = "rgba(0,0,0,0.28)";
+        ctx.beginPath();
+        ctx.ellipse(px, py + 3, 8, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        if (id === "levee") {
+          // 제방은 벽 블록으로
+          ctx.fillStyle = def.color;
+          ctx.fillRect(px - 8, py - 10, 16, 12);
+          ctx.strokeStyle = "rgba(0,0,0,0.35)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px - 8, py - 10, 16, 12);
+        }
+        ctx.font = "15px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(def.emoji, px, py - 4);
+      }
+
+      // ── 마을 집/학교 마커(침수 시 물 위로 떠서 표시 + 상태 점) ──
+      const drawMarker = (x: number, y: number, emoji: string, big: boolean) => {
+        const id = placedRef.current[`${x},${y}`];
+        const pumped = id && isPump(id);
+        const top = Math.max(effHeight(x, y), pumped ? effHeight(x, y) : lvl);
+        const [px, py] = project(x + 0.5, y + 0.5, top);
+        const depth = waterDepth(x, y, lvl);
+        const flooded = depth >= FLOOD_THRESHOLD;
+        ctx.font = big ? "18px sans-serif" : "14px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(emoji, px, py - 8);
+        // 상태 점
+        ctx.beginPath();
+        ctx.arc(px, py + 4, 3, 0, Math.PI * 2);
+        ctx.fillStyle = flooded ? "#ff5a5a" : "#4ade80";
+        ctx.fill();
+      };
+      for (const { x, y } of zone.houses) drawMarker(x, y, "🏠", false);
+      drawMarker(zone.school.x, zone.school.y, "🏫", true);
+
+      // ── 비 파티클 ──
       ctx.lineWidth = 1;
       ctx.strokeStyle = "rgba(174, 206, 255, 0.55)";
       for (const p of rain) {
         p.x += p.vx * dt;
         p.y += p.vy * dt;
         p.z += p.vz * dt;
-
         const gx = Math.floor(p.x);
         const gy = Math.floor(p.y);
         let landed = false;
         if (gx >= 0 && gx < GRID_SIZE && gy >= 0 && gy < GRID_SIZE) {
-          const ground = grid[gy][gx].altitude;
-          if (p.z <= ground) {
+          const surface = Math.max(grid[gy][gx].altitude, lvl);
+          if (p.z <= surface) {
             landed = true;
-            if (splashes.length < MAX_SPLASH) spawnSplash(p.x, p.y, ground);
+            if (splashes.length < MAX_SPLASH) spawnSplash(p.x, p.y, surface);
           }
         }
-
         if (
           landed ||
           p.x < 0 ||
@@ -242,7 +392,6 @@ export default function IsometricMap({ className }: IsometricMapProps) {
           spawnRain(p);
           continue;
         }
-
         const [sx, sy] = project(p.x, p.y, p.z);
         const [ex, ey] = project(
           p.x - p.vx * TRAIL,
@@ -255,7 +404,7 @@ export default function IsometricMap({ className }: IsometricMapProps) {
         ctx.stroke();
       }
 
-      // 스플래시 파티클 업데이트 & 렌더링
+      // ── 스플래시 ──
       for (let i = splashes.length - 1; i >= 0; i--) {
         const s = splashes[i];
         s.vz -= GRAVITY * dt;
@@ -263,7 +412,6 @@ export default function IsometricMap({ className }: IsometricMapProps) {
         s.y += s.vy * dt;
         s.z += s.vz * dt;
         s.life -= dt;
-
         if (s.life <= 0 || s.z <= s.ground - 0.5) {
           splashes.splice(i, 1);
           continue;
@@ -274,16 +422,42 @@ export default function IsometricMap({ className }: IsometricMapProps) {
         ctx.fillRect(sx - 1, sy - 1, 2, 2);
       }
 
-      // 번개 섬광: 간헐적으로 화면 전체가 우윳빛으로 밝아졌다가 서서히 감쇠
+      // ── 호버 하이라이트(설치 가능 상태) ──
+      const hov = hoverRef.current;
+      if (hov && interactiveRef.current) {
+        const [hx, hy] = hov;
+        const alt = grid[hy][hx].altitude;
+        const [ax, ay] = project(hx, hy, alt);
+        const [bx, by] = project(hx + 1, hy, alt);
+        const [cx, cy] = project(hx + 1, hy + 1, alt);
+        const [dx, dy] = project(hx, hy + 1, alt);
+        const occupied = !!placedRef.current[`${hx},${hy}`];
+        const isRemove = toolRef.current === "remove";
+        const invalid = alt < 6 || (occupied && !isRemove) || (isRemove && !occupied);
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(bx, by);
+        ctx.lineTo(cx, cy);
+        ctx.lineTo(dx, dy);
+        ctx.closePath();
+        ctx.fillStyle = invalid
+          ? "rgba(255,90,90,0.28)"
+          : "rgba(255,255,255,0.32)";
+        ctx.fill();
+        ctx.strokeStyle = invalid ? "#ff6a6a" : "#ffffff";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // ── 번개 섬광 ──
       if (lightning <= 0 && Math.random() < LIGHTNING_CHANCE) {
         lightning = LIGHTNING_DURATION;
       }
       if (lightning > 0) {
         lightning -= dt;
         const k = Math.max(0, lightning / LIGHTNING_DURATION);
-        const alpha = Math.pow(k, 0.6) * 0.55;
-        ctx.fillStyle = `rgba(246, 248, 255, ${alpha})`;
-        ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = `rgba(246, 248, 255, ${Math.pow(k, 0.6) * 0.5})`;
+        ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
       }
 
       raf = requestAnimationFrame(frame);
@@ -291,14 +465,71 @@ export default function IsometricMap({ className }: IsometricMapProps) {
 
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
-  }, [grid]);
+  }, [grid, zone]);
+
+  // ── 마우스 → 타일 픽킹 ──
+  const toLogical = (e: MouseEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const px = ((e.clientX - rect.left) / rect.width) * LOGICAL_W;
+    const py = ((e.clientY - rect.top) / rect.height) * LOGICAL_H;
+    return [px, py] as [number, number];
+  };
+  const pickTile = (px: number, py: number): [number, number] | null => {
+    let best: [number, number] | null = null;
+    let bestScore = -1;
+    for (let y = 0; y < GRID_SIZE; y++) {
+      for (let x = 0; x < GRID_SIZE; x++) {
+        const alt = grid[y][x].altitude;
+        const q: [number, number][] = [
+          project(x, y, alt),
+          project(x + 1, y, alt),
+          project(x + 1, y + 1, alt),
+          project(x, y + 1, alt),
+        ];
+        if (pointInQuad(px, py, q)) {
+          const sc = x + y;
+          if (sc > bestScore) {
+            bestScore = sc;
+            best = [x, y];
+          }
+        }
+      }
+    }
+    return best;
+  };
+
+  const handleMove = (e: MouseEvent) => {
+    if (!interactive) return;
+    const loc = toLogical(e);
+    if (!loc) return;
+    hoverRef.current = pickTile(loc[0], loc[1]);
+  };
+  const handleLeave = () => {
+    hoverRef.current = null;
+  };
+  const handleClick = (e: MouseEvent) => {
+    if (!interactive) return;
+    const loc = toLogical(e);
+    if (!loc) return;
+    const t = pickTile(loc[0], loc[1]);
+    if (t) onPlace(t[0], t[1]);
+  };
 
   return (
     <canvas
       ref={canvasRef}
-      className={className}
-      style={{ width: "100%", aspectRatio: `${LOGICAL_W} / ${LOGICAL_H}`, display: "block" }}
-      aria-label="우리 마을 아이소메트릭 지형 및 호우 시뮬레이션"
+      onMouseMove={handleMove}
+      onMouseLeave={handleLeave}
+      onClick={handleClick}
+      style={{
+        width: "100%",
+        aspectRatio: `${LOGICAL_W} / ${LOGICAL_H}`,
+        display: "block",
+        cursor: interactive ? "pointer" : "default",
+      }}
+      aria-label="우리 마을 아이소메트릭 지형 및 홍수 방재 게임 보드"
       role="img"
     />
   );

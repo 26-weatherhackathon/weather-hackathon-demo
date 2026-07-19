@@ -141,28 +141,50 @@ export function generateTerrainGrid(seed = 20260719): TerrainGrid {
   return grid;
 }
 
-/** 지형 격자의 고도 통계를 요약한다(디버깅/밸런싱용). */
-export function summarizeTerrain(grid: TerrainGrid): {
-  min: number;
-  max: number;
-  counts: Record<TerrainType, number>;
-} {
+export interface TilePos {
+  x: number;
+  y: number;
+}
+
+export interface ProtectedZone {
+  /** 지켜야 할 집들 */
+  houses: TilePos[];
+  /** 학교(가장 중요) */
+  school: TilePos;
+  /** houses + school */
+  all: TilePos[];
+}
+
+/**
+ * 지켜야 할 마을(집·학교)의 위치를 반환한다.
+ * 좌하단 저지대 범람원의 결정적 좌표(시드 고정 지형 기준)를 사용한다.
+ */
+export function getProtectedZone(_grid: TerrainGrid): ProtectedZone {
+  const houses: TilePos[] = [
+    { x: 4, y: 22 },
+    { x: 5, y: 22 },
+    { x: 6, y: 22 },
+    { x: 4, y: 23 },
+    { x: 6, y: 23 },
+    { x: 4, y: 24 },
+    { x: 5, y: 24 },
+    { x: 6, y: 24 },
+  ];
+  const school: TilePos = { x: 5, y: 23 };
+  return { houses, school, all: [...houses, school] };
+}
+
+/** 마을(보호 대상) 타일들의 최저/최고 고도를 반환한다. */
+export function getZoneElevationRange(
+  grid: TerrainGrid,
+  zone: ProtectedZone
+): { min: number; max: number } {
   let min = Infinity;
   let max = -Infinity;
-  const counts: Record<TerrainType, number> = {
-    mountain: 0,
-    hill: 0,
-    plain: 0,
-    water: 0,
-  };
-
-  for (const row of grid) {
-    for (const cell of row) {
-      if (cell.altitude < min) min = cell.altitude;
-      if (cell.altitude > max) max = cell.altitude;
-      counts[cell.type] += 1;
-    }
+  for (const { x, y } of zone.all) {
+    const a = grid[y][x].altitude;
+    if (a < min) min = a;
+    if (a > max) max = a;
   }
-
-  return { min, max, counts };
+  return { min, max };
 }
