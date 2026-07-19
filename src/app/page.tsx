@@ -127,7 +127,7 @@ export default function Home() {
                   <p className="mt-3 text-sm text-white/70">
                     침수된 건물 {g.result.flooded} / {g.totalHouses}채
                     <br />
-                    남은 예산 {g.budget}원
+                    남은 예산 {g.budget}만원
                   </p>
                   <button
                     onClick={g.reset}
@@ -150,7 +150,7 @@ export default function Home() {
                   <p className="text-2xl font-bold text-emerald-300">
                     {g.budget}
                     <span className="ml-1 text-sm font-normal text-white/50">
-                      / {g.startBudget}원
+                      / {g.startBudget}만원
                     </span>
                   </p>
                 </div>
@@ -228,7 +228,7 @@ export default function Home() {
                               tooPoor ? "text-rose-400" : "text-emerald-300"
                             }`}
                           >
-                            {id === "remove" ? "환급" : `${s.cost}원`}
+                            {id === "remove" ? "환급" : `${s.cost}만원`}
                           </span>
                         </span>
                         <span className="block text-[11px] text-white/50">
