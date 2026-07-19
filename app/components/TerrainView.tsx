@@ -2,23 +2,32 @@
 
 import { useMemo } from "react";
 import {
-  createMockDem,
-  computeD8Flow,
+  applyProtectionElevation,
   elevationToColor,
   isFlooded,
+  type Grid,
+  type FlowDir,
+  type Protection,
   GRID_ROWS,
   GRID_COLS,
 } from "@/lib/dem";
+import SignalIcon from "./SignalIcon";
 
 const TILE_W = 56; // 다이아몬드 타일 가로 폭(px)
 const TILE_H = 28; // 다이아몬드 타일 세로 폭(px)
 const HEIGHT_SCALE = 0.6; // 고도 1m당 타일을 들어올리는 픽셀 수
 
 type Props = {
+  grid: Grid;
+  flow: FlowDir[][];
+  highest: { row: number; col: number };
   showTerrain: boolean;
   showFlow: boolean;
   showRain: boolean;
   rainfallMm: number;
+  protections: Record<string, Protection>;
+  selectedKey: string | null;
+  onTileClick: (row: number, col: number) => void;
 };
 
 // 이웃 방향(dRow, dCol) → 아이소메트릭 화면에서의 회전각(deg)
@@ -27,20 +36,35 @@ function directionToDeg(dRow: number, dCol: number): number {
   return angle + 90; // 기본 화살표(▲)가 위(북)를 향하므로 90도 보정
 }
 
-export default function TerrainView({ showTerrain, showFlow, showRain, rainfallMm }: Props) {
-  const grid = useMemo(() => createMockDem(), []);
-  const flow = useMemo(() => computeD8Flow(grid), [grid]);
-
+export default function TerrainView({
+  grid,
+  flow,
+  highest,
+  showTerrain,
+  showFlow,
+  showRain,
+  rainfallMm,
+  protections,
+  selectedKey,
+  onTileClick,
+}: Props) {
   const floodedCount = useMemo(() => {
     if (!showRain) return 0;
     let count = 0;
-    for (const row of grid) {
-      for (const elevation of row) {
-        if (isFlooded(elevation, rainfallMm)) count++;
+    for (let row = 0; row < grid.length; row++) {
+      for (let col = 0; col < grid[row].length; col++) {
+        const protection = protections[`${row}-${col}`] ?? "none";
+        const effective = applyProtectionElevation(grid[row][col], protection);
+        if (isFlooded(effective, rainfallMm)) count++;
       }
     }
     return count;
-  }, [grid, showRain, rainfallMm]);
+  }, [grid, showRain, rainfallMm, protections]);
+
+  const hasEvacuation = useMemo(
+    () => Object.values(protections).some((p) => p === "evacuate"),
+    [protections]
+  );
 
   // 격자 전체를 감쌀 컨테이너 크기(다이아몬드 배치 기준)
   const containerWidth = (GRID_ROWS + GRID_COLS) * (TILE_W / 2);
@@ -56,20 +80,39 @@ export default function TerrainView({ showTerrain, showFlow, showRain, rainfallM
       >
         {grid.map((line, row) =>
           line.map((elevation, col) => {
-            const left =
-              containerWidth / 2 + (col - row) * (TILE_W / 2) - TILE_W / 2;
-            const top =
-              (col + row) * (TILE_H / 2) - elevation * HEIGHT_SCALE + 70;
+            const key = `${row}-${col}`;
+            const protection = protections[key] ?? "none";
+            const effectiveElevation = applyProtectionElevation(elevation, protection);
+            // 높이 올리기는 땅 자체를 돋우므로 화면에도 반영, 모래주머니는 방벽만 추가한 것이라 지형 색은 그대로 둔다.
+            const displayElevation = protection === "raise" ? effectiveElevation : elevation;
 
-            const color = showTerrain ? elevationToColor(elevation) : "#c9c9c9";
-            const flooded = showRain && isFlooded(elevation, rainfallMm);
+            const left = containerWidth / 2 + (col - row) * (TILE_W / 2) - TILE_W / 2;
+            const top = (col + row) * (TILE_H / 2) - displayElevation * HEIGHT_SCALE + 70;
+
+            const color = showTerrain ? elevationToColor(displayElevation) : "#c9c9c9";
+            const flooded = showRain && isFlooded(effectiveElevation, rainfallMm);
             const dir = flow[row][col];
+            const isSelected = selectedKey === key;
+
+            let signal: "safe" | "warning" | "danger" | null = null;
+            if (protection === "shelter") signal = flooded ? "warning" : "safe";
+            else if (protection === "sandbag") signal = flooded ? "warning" : "safe";
+            else if (protection === "raise") signal = flooded ? "danger" : "safe";
+            else if (protection === "evacuate") signal = "safe";
 
             return (
-              <div
-                key={`${row}-${col}`}
-                className="absolute"
-                style={{ left, top, width: TILE_W, height: TILE_H + elevation * HEIGHT_SCALE }}
+              <button
+                type="button"
+                key={key}
+                onClick={() => onTileClick(row, col)}
+                aria-label={`(${row}, ${col}) 지역, 고도 ${elevation}m${flooded ? ", 침수됨" : ""}`}
+                className="absolute cursor-pointer"
+                style={{
+                  left,
+                  top,
+                  width: TILE_W,
+                  height: TILE_H + displayElevation * HEIGHT_SCALE,
+                }}
               >
                 {/* 측면(고도만큼 아래로 두께를 준 벽면) */}
                 <div
@@ -77,7 +120,7 @@ export default function TerrainView({ showTerrain, showFlow, showRain, rainfallM
                   style={{
                     top: TILE_H / 2,
                     width: TILE_W * 0.7,
-                    height: elevation * HEIGHT_SCALE,
+                    height: displayElevation * HEIGHT_SCALE,
                     background: color,
                     filter: "brightness(0.72)",
                     clipPath: "polygon(0 0, 100% 0, 85% 100%, 15% 100%)",
@@ -85,9 +128,10 @@ export default function TerrainView({ showTerrain, showFlow, showRain, rainfallM
                 />
                 {/* 윗면(다이아몬드) */}
                 <div
-                  className="absolute inset-0 border border-black/10"
+                  className="absolute inset-0"
                   style={{
                     background: color,
+                    border: isSelected ? "2px solid #1d4ed8" : "1px solid rgba(0,0,0,0.1)",
                     transform: "rotate(45deg) scaleY(0.58)",
                     transformOrigin: "center",
                   }}
@@ -116,9 +160,30 @@ export default function TerrainView({ showTerrain, showFlow, showRain, rainfallM
                     ▲
                   </span>
                 )}
-              </div>
+                {signal && (
+                  <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[130%]">
+                    <SignalIcon signal={signal} />
+                  </span>
+                )}
+              </button>
             );
           })
+        )}
+
+        {hasEvacuation && (
+          <span
+            className="absolute z-20 -translate-x-1/2 -translate-y-full text-xl"
+            style={{
+              left: containerWidth / 2 + (highest.col - highest.row) * (TILE_W / 2),
+              top:
+                (highest.col + highest.row) * (TILE_H / 2) -
+                grid[highest.row][highest.col] * HEIGHT_SCALE +
+                70,
+            }}
+            title="마을 사람들이 대피한 곳"
+          >
+            🏠
+          </span>
         )}
       </div>
 

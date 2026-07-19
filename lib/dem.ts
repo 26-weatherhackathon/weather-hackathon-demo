@@ -80,3 +80,53 @@ export function computeD8Flow(grid: Grid): FlowDir[][] {
 export function isFlooded(elevation: number, rainfallMm: number, baselineM = 10): boolean {
   return elevation < baselineM + rainfallMm / 10;
 }
+
+/** 지역 선택 후 고를 수 있는 4가지 선택지. PLAN.md 5.3 표 그대로. */
+export type Protection = "none" | "raise" | "sandbag" | "shelter" | "evacuate";
+
+/** 선택지별 DEM 반영 규칙(PLAN.md 5.3): 침수 판정에 쓰일 "실효 고도"를 계산한다.
+ *  높이 올리기는 땅 자체를 돋우고, 모래주머니는 땅은 그대로 둔 채 방벽만 더한다. */
+export function applyProtectionElevation(elevation: number, protection: Protection): number {
+  if (protection === "raise") return elevation + 30;
+  if (protection === "sandbag") return elevation + 10;
+  return elevation;
+}
+
+/** 격자에서 고도가 가장 높은 셀. "모두 피난" 선택 시 대피 목적지로 쓴다. */
+export function findHighestCell(grid: Grid): { row: number; col: number; elevation: number } {
+  let best = { row: 0, col: 0, elevation: grid[0][0] };
+  for (let row = 0; row < grid.length; row++) {
+    for (let col = 0; col < grid[row].length; col++) {
+      if (grid[row][col] > best.elevation) {
+        best = { row, col, elevation: grid[row][col] };
+      }
+    }
+  }
+  return best;
+}
+
+export type Outcome = { signal: "safe" | "warning" | "danger"; text: string };
+
+/** 선택 결과를 초등 눈높이 문구로 변환. PLAN.md 5.2.1 (2) 신호색 체계에 맞춘다. */
+export function describeOutcome(protection: Protection, flooded: boolean): Outcome {
+  switch (protection) {
+    case "raise":
+      return flooded
+        ? { signal: "danger", text: "땅을 높였지만 그래도 물이 넘쳤어요" }
+        : { signal: "safe", text: "땅을 높였더니 안전해졌어요!" };
+    case "sandbag":
+      return flooded
+        ? { signal: "warning", text: "모래주머니를 넘어 물이 들어왔어요" }
+        : { signal: "safe", text: "모래주머니로 물을 막았어요" };
+    case "shelter":
+      return flooded
+        ? { signal: "warning", text: "집은 물에 잠겼지만, 대피소 덕분에 사람들은 안전해요" }
+        : { signal: "safe", text: "원래도 안전한 곳이었고, 대피소까지 준비했어요" };
+    case "evacuate":
+      return { signal: "safe", text: "마을 사람들이 가장 높은 곳으로 대피했어요" };
+    default:
+      return flooded
+        ? { signal: "danger", text: "이 지역이 물에 잠겼어요" }
+        : { signal: "safe", text: "이 지역은 안전해요" };
+  }
+}
