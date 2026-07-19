@@ -165,15 +165,19 @@ export default function TerrainView({
                 )}
                 {showFlow && dir && (
                   <span
-                    className="absolute left-1/2 top-1/2 text-[10px] leading-none text-white drop-shadow"
+                    className="absolute left-1/2 top-1/2 flex items-center justify-center rounded-full bg-black/50"
                     style={{
+                      width: 22,
+                      height: 22,
                       transform: `translate(-50%, -60%) rotate(${directionToDeg(
                         dir.dRow,
                         dir.dCol
                       )}deg)`,
                     }}
                   >
-                    ▲
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+                      <path d="M12 2 L18.5 14 H14.5 V22 H9.5 V14 H5.5 Z" />
+                    </svg>
                   </span>
                 )}
                 {signal && (
