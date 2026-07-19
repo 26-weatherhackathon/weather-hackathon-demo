@@ -32,7 +32,6 @@ function Stars({ n }: { n: number }) {
 export default function Home() {
   const g = useFloodGame();
 
-  const stormProgress = Math.min(1, g.elapsed / g.duration);
   const remain = Math.max(0, Math.ceil(g.duration - g.elapsed));
 
   const gaugeMin = 3;
@@ -90,7 +89,7 @@ export default function Home() {
         <div className="flex min-h-0 flex-1 gap-4">
           {/* 게임판 */}
           <section
-            className="relative flex min-w-0 flex-1 flex-col overflow-hidden border-[4px] border-white bg-sky-100 shadow-[0_9px_0_rgba(150,190,225,0.5),0_20px_36px_rgba(60,120,180,0.2)]"
+            className="relative flex min-w-0 flex-1 flex-col overflow-hidden border-[4px] border-white bg-[#e6f3ff] shadow-[0_9px_0_rgba(150,190,225,0.5),0_20px_36px_rgba(60,120,180,0.2)]"
             style={{ borderRadius: 28 }}
           >
             <div className="flex shrink-0 items-center justify-between gap-3 px-5 py-3">
@@ -105,13 +104,6 @@ export default function Home() {
                 <span className="h-2.5 w-2.5 animate-pulse-glow rounded-full bg-rose-400" />
                 예상 최고 수위 {g.peakLevel.toFixed(1)}m
               </span>
-            </div>
-
-            <div className="h-2 w-full shrink-0 bg-white/70">
-              <div
-                className="h-full bg-gradient-to-r from-sky-400 to-rose-400 transition-[width] duration-200"
-                style={{ width: `${stormProgress * 100}%` }}
-              />
             </div>
 
             <div className="relative flex min-h-0 flex-1 justify-center overflow-hidden">
@@ -235,7 +227,7 @@ export default function Home() {
               <p className="font-jua mb-3 shrink-0 text-base text-slate-600">
                 🧰 방재 시설 {g.phase !== "result" && "· 골라서 지도에 설치"}
               </p>
-              <div className="grid min-h-0 flex-1 content-start grid-cols-2 gap-2.5 overflow-y-auto pr-1">
+              <div className="grid min-h-0 flex-1 content-start grid-cols-2 gap-2 overflow-y-auto pr-1">
                 {PLACEABLE.map((id: ToolId) => {
                   const s = STRUCTURES[id];
                   const selected = g.tool === id;
@@ -244,13 +236,13 @@ export default function Home() {
                     <button
                       key={id}
                       onClick={() => g.setTool(id)}
-                      className={`flex flex-col items-center gap-1 rounded-2xl border-[3px] px-2 py-3 transition ${
+                      className={`flex flex-col items-center gap-0.5 rounded-2xl border-[3px] px-2 py-2 transition ${
                         selected
                           ? "-translate-y-0.5 border-amber-400 bg-amber-50 shadow-[0_6px_0_rgba(251,191,36,0.5)]"
                           : "border-slate-200 bg-white shadow-[0_4px_0_rgba(180,200,220,0.5)] hover:-translate-y-0.5"
                       }`}
                     >
-                      <span className="text-4xl">{s.emoji}</span>
+                      <span className="text-3xl">{s.emoji}</span>
                       <span className="font-jua text-sm text-slate-700">{s.name}</span>
                       <span
                         className={`flex items-center gap-1 text-xs font-bold ${

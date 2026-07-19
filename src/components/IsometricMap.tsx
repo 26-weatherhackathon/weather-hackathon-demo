@@ -16,7 +16,7 @@ const TILE_W = 26;
 const TILE_H = 13;
 const HEIGHT_SCALE = 0.9;
 const ORIGIN_X = LOGICAL_W / 2;
-const ORIGIN_Y = 70;
+const ORIGIN_Y = 155;
 const RAIN_COUNT = 240;
 const TRAIL = 0.14;
 const GRAVITY = 220;
@@ -153,11 +153,8 @@ export default function IsometricMap({
     if (!octx) return;
     octx.scale(dpr, dpr);
 
-    const sky = octx.createLinearGradient(0, 0, 0, LOGICAL_H);
-    sky.addColorStop(0, "#e8f5ff");
-    sky.addColorStop(0.55, "#d5ecfb");
-    sky.addColorStop(1, "#c6e4f7");
-    octx.fillStyle = sky;
+    // 페이지 카드 배경과 동일한 평면 색 → 캔버스 밖과 이어져 끊김 없음
+    octx.fillStyle = "#e6f3ff";
     octx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
     const drawTile = (x: number, y: number) => {
