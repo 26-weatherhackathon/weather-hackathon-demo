@@ -109,6 +109,21 @@ export default function Home() {
 
           <div className="flex-1" />
 
+          {/* 호우 카운트다운 (헤더) */}
+          {g.phase === "storm" && (
+            <div className="flex items-center gap-2 rounded-full border-[3px] border-white bg-white px-5 py-2.5 shadow-[0_5px_0_rgba(150,190,225,0.55)]">
+              <span className="text-sm font-bold text-slate-400">남은 시간</span>
+              <span
+                className={`font-jua text-2xl leading-none ${
+                  remain <= 5 ? "text-rose-500" : "text-sky-600"
+                }`}
+              >
+                {remain}
+              </span>
+              <span className="text-sm font-bold text-slate-400">초</span>
+            </div>
+          )}
+
           <div className="flex items-center gap-2.5 rounded-full border-[3px] border-white bg-gradient-to-b from-amber-300 to-amber-400 px-5 py-2.5 shadow-[0_5px_0_rgba(202,138,4,0.55)]">
             <Coin size={26} />
             <span className="font-jua text-2xl text-amber-900">{g.budget}</span>
@@ -205,22 +220,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* 큰 카운트다운 타이머 */}
-              {g.phase === "storm" && (
-                <div className="pointer-events-none absolute left-1/2 top-4 z-10 -translate-x-1/2">
-                  <div className="flex items-baseline gap-2 rounded-3xl border-[3px] border-white bg-white px-8 py-3 shadow-[0_6px_0_rgba(150,190,225,0.6)]">
-                    <span className="text-base font-bold text-slate-400">남은 시간</span>
-                    <span
-                      className={`font-jua text-6xl leading-none ${
-                        remain <= 5 ? "text-rose-500" : "text-sky-600"
-                      }`}
-                    >
-                      {remain}
-                    </span>
-                    <span className="text-xl font-bold text-slate-400">초</span>
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* 결과 모달 */}
