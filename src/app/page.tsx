@@ -180,6 +180,7 @@ export default function Home() {
                   zone={g.zone}
                   placed={g.placed}
                   level={g.level}
+                  peakLevel={g.peakLevel}
                   tool={g.tool}
                   interactive={g.phase !== "result"}
                   onPlace={g.place}
