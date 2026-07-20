@@ -93,6 +93,8 @@ interface IsometricMapProps {
   zone: ProtectedZone;
   placed: Record<string, ToolId>;
   level: number;
+  /** 저류조 반영 예상 최고 수위(m) — 건물 위험 뱃지 판정 기준 */
+  peakLevel: number;
   tool: ToolId;
   interactive: boolean;
   onPlace: (x: number, y: number) => void;
@@ -103,6 +105,7 @@ export default function IsometricMap({
   zone,
   placed,
   level,
+  peakLevel,
   tool,
   interactive,
   onPlace,
@@ -112,6 +115,7 @@ export default function IsometricMap({
   // 애니메이션 루프가 최신 상태를 읽도록 ref 로 보관(루프 재시작 방지)
   const placedRef = useRef(placed);
   const levelRef = useRef(level);
+  const peakRef = useRef(peakLevel);
   const toolRef = useRef(tool);
   const interactiveRef = useRef(interactive);
   const hoverRef = useRef<[number, number] | null>(null);
@@ -121,6 +125,9 @@ export default function IsometricMap({
   useEffect(() => {
     levelRef.current = level;
   }, [level]);
+  useEffect(() => {
+    peakRef.current = peakLevel;
+  }, [peakLevel]);
   useEffect(() => {
     toolRef.current = tool;
   }, [tool]);
@@ -400,17 +407,45 @@ export default function IsometricMap({
           ctx.stroke();
         }
         const sprite = big ? schoolImg : houseImg;
+        let spriteTop = py - 16;
         if (sprite.complete && sprite.naturalWidth > 0) {
           const w = big ? 32 : 23;
           const h = (w * sprite.naturalHeight) / sprite.naturalWidth;
           ctx.drawImage(sprite, px - w / 2, py - h + 4, w, h);
+          spriteTop = py - h + 4;
         } else {
           ctx.font = big ? "18px sans-serif" : "14px sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.fillText(emoji, px, py - 8);
         }
-        // 상태 점(안전=초록 / 침수=빨강)
+        // 고도 뱃지 — "이 집은 얼마나 낮은가"를 숫자로 보여주고,
+        // 예상 최고 수위 기준 안전(✓)/위험(✕)을 색으로 표시(PLAN 5.2.1 신호색).
+        // 배수펌프 타일은 수위와 무관하게 안전, 그 외에는 (고도+시설 높이) vs 예상 수위.
+        {
+          const atRisk =
+            !pumped && peakRef.current - effHeight(x, y) >= FLOOD_THRESHOLD;
+          const label = `${atRisk ? "✕" : "✓"} ${grid[y][x].altitude.toFixed(1)}m`;
+          ctx.font = "bold 9px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          const bw = ctx.measureText(label).width + 8;
+          const bh = 13;
+          const bx = px - bw / 2;
+          const by = spriteTop - bh - 2;
+          ctx.beginPath();
+          ctx.roundRect(bx, by, bw, bh, 6);
+          ctx.fillStyle = atRisk
+            ? "rgba(229, 57, 53, 0.92)"
+            : "rgba(67, 160, 71, 0.92)";
+          ctx.fill();
+          ctx.strokeStyle = "rgba(255,255,255,0.85)";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(label, px, by + bh / 2 + 0.5);
+        }
+        // 상태 점(현재 수위 기준: 안전=초록 / 침수=빨강)
         ctx.beginPath();
         ctx.arc(px, py + 5, 3.5, 0, Math.PI * 2);
         ctx.fillStyle = flooded ? "#E53935" : "#43A047";
