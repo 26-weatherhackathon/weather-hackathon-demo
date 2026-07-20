@@ -98,40 +98,47 @@ const MIN_BUILDABLE_ALTITUDE = 6;
  */
 export function getProtectedZone(grid: TerrainGrid): ProtectedZone {
   const N = grid.length;
-  let best: { x: number; y: number; avg: number } | null = null;
 
-  for (let y = 0; y <= N - 3; y++) {
-    for (let x = 0; x <= N - 3; x++) {
-      let sum = 0;
-      let buildable = true;
-      for (let dy = 0; dy < 3 && buildable; dy++) {
-        for (let dx = 0; dx < 3; dx++) {
-          const a = grid[y + dy][x + dx].altitude;
-          if (a < MIN_BUILDABLE_ALTITUDE) {
-            buildable = false;
-            break;
-          }
-          sum += a;
-        }
-      }
-      if (!buildable) continue;
-      const avg = sum / 9;
-      if (!best || avg < best.avg) best = { x, y, avg };
+  // 설치 가능(>= MIN_BUILDABLE)한 타일을 고도 낮은 순으로 모은다(낮을수록 침수에 취약).
+  const buildable: { x: number; y: number; alt: number }[] = [];
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const alt = grid[y][x].altitude;
+      if (alt >= MIN_BUILDABLE_ALTITUDE) buildable.push({ x, y, alt });
+    }
+  }
+  buildable.sort((a, b) => a.alt - b.alt);
+
+  // 취약한 저지대 후보군에서 서로 간격을 두고 분산 배치(한 곳에 뭉치지 않도록).
+  const pool = buildable.slice(0, Math.max(40, Math.floor(buildable.length * 0.4)));
+  const MIN_DIST = 4; // 맨해튼 거리
+  const TARGET = 9;
+  const chosen: TilePos[] = [];
+  const farEnough = (p: { x: number; y: number }) =>
+    chosen.every((c) => Math.abs(c.x - p.x) + Math.abs(c.y - p.y) >= MIN_DIST);
+
+  const first = pool[0] ?? buildable[0] ?? { x: 0, y: 0, alt: 0 };
+  const school: TilePos = { x: first.x, y: first.y }; // 가장 낮은 = 가장 취약 = 학교
+  chosen.push(school);
+
+  for (const p of pool) {
+    if (chosen.length >= TARGET) break;
+    if (p.x === school.x && p.y === school.y) continue;
+    if (farEnough(p)) chosen.push({ x: p.x, y: p.y });
+  }
+  // 간격 조건으로 부족하면 완화해 채운다.
+  if (chosen.length < TARGET) {
+    for (const p of pool) {
+      if (chosen.length >= TARGET) break;
+      if (chosen.some((c) => c.x === p.x && c.y === p.y)) continue;
+      chosen.push({ x: p.x, y: p.y });
     }
   }
 
-  // 이론상 전 지역이 설치 불가 고도(<6m)인 경우는 없지만, 방어적으로 좌상단 폴백.
-  const { x: bx, y: by } = best ?? { x: 0, y: 0 };
-
-  const block: TilePos[] = [];
-  for (let dy = 0; dy < 3; dy++) {
-    for (let dx = 0; dx < 3; dx++) block.push({ x: bx + dx, y: by + dy });
-  }
-  block.sort((a, b) => grid[a.y][a.x].altitude - grid[b.y][b.x].altitude);
-
-  const school = block[0]; // 블록 내 최저점(가장 취약) = 학교
-  const houses = block.slice(1);
-  return { houses, school, all: [...houses, school] };
+  const houses = chosen.filter(
+    (c) => !(c.x === school.x && c.y === school.y)
+  );
+  return { houses, school, all: [school, ...houses] };
 }
 
 /** 마을(보호 대상) 타일들의 최저/최고 고도를 반환한다. */

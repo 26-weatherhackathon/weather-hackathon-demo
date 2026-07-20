@@ -134,7 +134,7 @@ export default function IsometricMap({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
     canvas.width = Math.floor(LOGICAL_W * dpr);
     canvas.height = Math.floor(LOGICAL_H * dpr);
     ctx.scale(dpr, dpr);
@@ -335,6 +335,25 @@ export default function IsometricMap({
         const def = STRUCTURES[id];
         const z = grid[sy][sx].altitude + def.barrier;
         const [px, py] = project(sx + 0.5, sy + 0.5, z);
+        // 설치 타일을 시설 색으로 강조 → 어디에 무엇을 놓았는지·효과가 보이게
+        {
+          const base = grid[sy][sx].altitude;
+          const t = project(sx + 0.5, sy, base);
+          const r = project(sx + 1, sy + 0.5, base);
+          const b = project(sx + 0.5, sy + 1, base);
+          const l = project(sx, sy + 0.5, base);
+          ctx.beginPath();
+          ctx.moveTo(t[0], t[1]);
+          ctx.lineTo(r[0], r[1]);
+          ctx.lineTo(b[0], b[1]);
+          ctx.lineTo(l[0], l[1]);
+          ctx.closePath();
+          ctx.fillStyle = def.color + "99";
+          ctx.fill();
+          ctx.strokeStyle = def.color;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
         // 받침
         ctx.fillStyle = "rgba(0,0,0,0.28)";
         ctx.beginPath();
@@ -362,6 +381,24 @@ export default function IsometricMap({
         const [px, py] = project(x + 0.5, y + 0.5, top);
         const depth = waterDepth(x, y, lvl);
         const flooded = depth >= FLOOD_THRESHOLD;
+        // 마당(집이 놓인 칸 발밑 잔디) — 집 위치를 명확히 구분
+        {
+          const t = project(x + 0.5, y, top);
+          const r = project(x + 1, y + 0.5, top);
+          const b = project(x + 0.5, y + 1, top);
+          const l = project(x, y + 0.5, top);
+          ctx.beginPath();
+          ctx.moveTo(t[0], t[1]);
+          ctx.lineTo(r[0], r[1]);
+          ctx.lineTo(b[0], b[1]);
+          ctx.lineTo(l[0], l[1]);
+          ctx.closePath();
+          ctx.fillStyle = "rgba(151, 214, 143, 0.55)";
+          ctx.fill();
+          ctx.strokeStyle = "rgba(255,255,255,0.7)";
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        }
         const sprite = big ? schoolImg : houseImg;
         if (sprite.complete && sprite.naturalWidth > 0) {
           const w = big ? 32 : 23;
