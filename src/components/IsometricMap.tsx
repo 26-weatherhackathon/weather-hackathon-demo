@@ -16,7 +16,7 @@ const TILE_W = 26;
 const TILE_H = 13;
 const HEIGHT_SCALE = 0.9;
 const ORIGIN_X = LOGICAL_W / 2;
-const ORIGIN_Y = 70;
+const ORIGIN_Y = 155;
 const RAIN_COUNT = 240;
 const TRAIL = 0.14;
 const GRAVITY = 220;
@@ -93,6 +93,8 @@ interface IsometricMapProps {
   zone: ProtectedZone;
   placed: Record<string, ToolId>;
   level: number;
+  /** 저류조 반영 예상 최고 수위(m) — 건물 위험 뱃지 판정 기준 */
+  peakLevel: number;
   tool: ToolId;
   interactive: boolean;
   onPlace: (x: number, y: number) => void;
@@ -103,6 +105,7 @@ export default function IsometricMap({
   zone,
   placed,
   level,
+  peakLevel,
   tool,
   interactive,
   onPlace,
@@ -112,6 +115,7 @@ export default function IsometricMap({
   // 애니메이션 루프가 최신 상태를 읽도록 ref 로 보관(루프 재시작 방지)
   const placedRef = useRef(placed);
   const levelRef = useRef(level);
+  const peakRef = useRef(peakLevel);
   const toolRef = useRef(tool);
   const interactiveRef = useRef(interactive);
   const hoverRef = useRef<[number, number] | null>(null);
@@ -121,6 +125,9 @@ export default function IsometricMap({
   useEffect(() => {
     levelRef.current = level;
   }, [level]);
+  useEffect(() => {
+    peakRef.current = peakLevel;
+  }, [peakLevel]);
   useEffect(() => {
     toolRef.current = tool;
   }, [tool]);
@@ -134,10 +141,16 @@ export default function IsometricMap({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
     canvas.width = Math.floor(LOGICAL_W * dpr);
     canvas.height = Math.floor(LOGICAL_H * dpr);
     ctx.scale(dpr, dpr);
+
+    // 마을 건물 스프라이트(생성 에셋) 로드
+    const houseImg = new Image();
+    houseImg.src = "/img/assets/house.png";
+    const schoolImg = new Image();
+    schoolImg.src = "/img/assets/school.png";
 
     // ── 정적 레이어(폭풍 하늘 + 지형 + 마을 표식)를 오프스크린에 1회 렌더 ──
     const off = document.createElement("canvas");
@@ -147,11 +160,8 @@ export default function IsometricMap({
     if (!octx) return;
     octx.scale(dpr, dpr);
 
-    const sky = octx.createLinearGradient(0, 0, 0, LOGICAL_H);
-    sky.addColorStop(0, "#12203a");
-    sky.addColorStop(0.55, "#0d1830");
-    sky.addColorStop(1, "#080f20");
-    octx.fillStyle = sky;
+    // 페이지 카드 배경과 동일한 평면 색 → 캔버스 밖과 이어져 끊김 없음
+    octx.fillStyle = "#e6f3ff";
     octx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
     const drawTile = (x: number, y: number) => {
@@ -167,7 +177,7 @@ export default function IsometricMap({
       const [c0x, c0y] = project(x + 1, y + 1, 0);
       const [d0x, d0y] = project(x, y + 1, 0);
 
-      const right = shade(color, 0.78);
+      const right = shade(color, 0.88);
       octx.fillStyle = right;
       octx.strokeStyle = right;
       octx.lineWidth = 1;
@@ -180,7 +190,7 @@ export default function IsometricMap({
       octx.fill();
       octx.stroke();
 
-      const left = shade(color, 0.6);
+      const left = shade(color, 0.75);
       octx.fillStyle = left;
       octx.strokeStyle = left;
       octx.beginPath();
@@ -332,6 +342,25 @@ export default function IsometricMap({
         const def = STRUCTURES[id];
         const z = grid[sy][sx].altitude + def.barrier;
         const [px, py] = project(sx + 0.5, sy + 0.5, z);
+        // 설치 타일을 시설 색으로 강조 → 어디에 무엇을 놓았는지·효과가 보이게
+        {
+          const base = grid[sy][sx].altitude;
+          const t = project(sx + 0.5, sy, base);
+          const r = project(sx + 1, sy + 0.5, base);
+          const b = project(sx + 0.5, sy + 1, base);
+          const l = project(sx, sy + 0.5, base);
+          ctx.beginPath();
+          ctx.moveTo(t[0], t[1]);
+          ctx.lineTo(r[0], r[1]);
+          ctx.lineTo(b[0], b[1]);
+          ctx.lineTo(l[0], l[1]);
+          ctx.closePath();
+          ctx.fillStyle = def.color + "99";
+          ctx.fill();
+          ctx.strokeStyle = def.color;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
         // 받침
         ctx.fillStyle = "rgba(0,0,0,0.28)";
         ctx.beginPath();
@@ -359,14 +388,67 @@ export default function IsometricMap({
         const [px, py] = project(x + 0.5, y + 0.5, top);
         const depth = waterDepth(x, y, lvl);
         const flooded = depth >= FLOOD_THRESHOLD;
-        ctx.font = big ? "18px sans-serif" : "14px sans-serif";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(emoji, px, py - 8);
-        // 상태 점
+        // 마당(집이 놓인 칸 발밑 잔디) — 집 위치를 명확히 구분
+        {
+          const t = project(x + 0.5, y, top);
+          const r = project(x + 1, y + 0.5, top);
+          const b = project(x + 0.5, y + 1, top);
+          const l = project(x, y + 0.5, top);
+          ctx.beginPath();
+          ctx.moveTo(t[0], t[1]);
+          ctx.lineTo(r[0], r[1]);
+          ctx.lineTo(b[0], b[1]);
+          ctx.lineTo(l[0], l[1]);
+          ctx.closePath();
+          ctx.fillStyle = "rgba(151, 214, 143, 0.55)";
+          ctx.fill();
+          ctx.strokeStyle = "rgba(255,255,255,0.7)";
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        }
+        const sprite = big ? schoolImg : houseImg;
+        let spriteTop = py - 16;
+        if (sprite.complete && sprite.naturalWidth > 0) {
+          const w = big ? 32 : 23;
+          const h = (w * sprite.naturalHeight) / sprite.naturalWidth;
+          ctx.drawImage(sprite, px - w / 2, py - h + 4, w, h);
+          spriteTop = py - h + 4;
+        } else {
+          ctx.font = big ? "18px sans-serif" : "14px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(emoji, px, py - 8);
+        }
+        // 고도 뱃지 — "이 집은 얼마나 낮은가"를 숫자로 보여주고,
+        // 예상 최고 수위 기준 안전(✓)/위험(✕)을 색으로 표시(PLAN 5.2.1 신호색).
+        // 배수펌프 타일은 수위와 무관하게 안전, 그 외에는 (고도+시설 높이) vs 예상 수위.
+        {
+          const atRisk =
+            !pumped && peakRef.current - effHeight(x, y) >= FLOOD_THRESHOLD;
+          const label = `${atRisk ? "✕" : "✓"} ${grid[y][x].altitude.toFixed(1)}m`;
+          ctx.font = "bold 9px sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          const bw = ctx.measureText(label).width + 8;
+          const bh = 13;
+          const bx = px - bw / 2;
+          const by = spriteTop - bh - 2;
+          ctx.beginPath();
+          ctx.roundRect(bx, by, bw, bh, 6);
+          ctx.fillStyle = atRisk
+            ? "rgba(229, 57, 53, 0.92)"
+            : "rgba(67, 160, 71, 0.92)";
+          ctx.fill();
+          ctx.strokeStyle = "rgba(255,255,255,0.85)";
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(label, px, by + bh / 2 + 0.5);
+        }
+        // 상태 점(현재 수위 기준: 안전=초록 / 침수=빨강)
         ctx.beginPath();
-        ctx.arc(px, py + 4, 3, 0, Math.PI * 2);
-        ctx.fillStyle = flooded ? "#ff5a5a" : "#4ade80";
+        ctx.arc(px, py + 5, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = flooded ? "#E53935" : "#43A047";
         ctx.fill();
       };
       for (const { x, y } of zone.houses) drawMarker(x, y, "🏠", false);
@@ -374,7 +456,7 @@ export default function IsometricMap({
 
       // ── 비 파티클 ──
       ctx.lineWidth = 1;
-      ctx.strokeStyle = "rgba(174, 206, 255, 0.55)";
+      ctx.strokeStyle = "rgba(90, 140, 200, 0.55)";
       for (const p of rain) {
         p.x += p.vx * dt;
         p.y += p.vy * dt;
@@ -426,7 +508,7 @@ export default function IsometricMap({
         }
         const [sx, sy] = project(s.x, s.y, s.z);
         const a = Math.max(0, Math.min(1, s.life / 0.5)) * 0.8;
-        ctx.fillStyle = `rgba(200, 226, 255, ${a})`;
+        ctx.fillStyle = `rgba(120, 165, 215, ${a})`;
         ctx.fillRect(sx - 1, sy - 1, 2, 2);
       }
 

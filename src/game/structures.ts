@@ -71,8 +71,8 @@ export const STRUCTURES: Record<ToolId, StructureDef> = {
     color: "#5a7fc9",
     barrier: 0,
     pump: false,
-    basinReduction: 0.5,
-    short: "마을 수위 -0.5m",
+    basinReduction: 1,
+    short: "마을 수위 -1m",
     learn: "빗물을 저장해 마을 전체의 물 높이를 낮춰요.",
   },
   remove: {

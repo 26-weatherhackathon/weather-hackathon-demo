@@ -87,51 +87,71 @@ export interface ProtectedZone {
 const MIN_BUILDABLE_ALTITUDE = 6;
 
 /**
+ * 마을 건물을 뽑는 고도 밴드(PLAN.md 5.3).
+ *
+ * 경계값은 게임 상수에서 유도된다(변경 시 scripts/balance_check.mjs로 재검증):
+ *   최고 수위 16.5m − 침수 판정 0.3m = 맨몸 안전선 16.2m
+ *   16.2 − 모래주머니 1.5m = 14.7m  → 그 위는 모래주머니(20만원)로 방어 가능
+ *   16.2 − 제방 6m       = 10.2m  → 그 위는 제방(70만원)으로 방어 가능
+ *   그 아래 저지대는 배수펌프(90만원)만 유효
+ *
+ * 이렇게 9채를 계층 배치하면 완전 방어(3★) 최적해가 펌프2+제방3+모래주머니4
+ * = 470만원으로 예산(500만원) 안에 들어오되, 집마다 고도를 읽고 알맞은
+ * 시설을 골라야만 달성된다(전부 저지대에 몰리면 2★조차 예산 초과로 불가능).
+ */
+const VILLAGE_BANDS: { min: number; max: number; count: number }[] = [
+  { min: MIN_BUILDABLE_ALTITUDE, max: 10.2, count: 2 }, // 저지대(학교 포함): 펌프 전용
+  { min: 10.2, max: 13.2, count: 3 }, // 중지대: 제방 권장
+  { min: 14.7, max: 16.2, count: 4 }, // 상부: 모래주머니면 충분
+];
+
+/**
  * 지켜야 할 마을(집·학교)의 위치를 반환한다.
  *
  * 하천 바닥(설치 불가 고도)에는 마을을 두지 않는다. 그 경우 어떤 시설도
  * 놓을 수 없어 선택과 무관하게 항상 침수되어 게임의 핵심 루프(선택에 따라
- * 결과가 달라짐)가 무너진다. 대신 "시설을 놓을 수 있는 3x3 인접 구역" 중
- * 평균 고도가 가장 낮은(가장 침수 위험이 큰) 블록을 찾아 마을로 둔다.
- * 일부 셀은 방어 없이도 안전하고 일부는 조합이 필요하도록, 실제 지형의
- * 기복이 자연스럽게 난이도를 만든다.
+ * 결과가 달라짐)가 무너진다. 건물은 VILLAGE_BANDS의 고도 밴드별로 서로
+ * 간격을 두고 분산 배치해, 시설 4종이 각자 알맞은 쓰임새를 갖고 예산 안에서
+ * 완전 방어가 가능한 난이도를 만든다. 가장 낮은(가장 취약한) 자리가 학교다.
  */
 export function getProtectedZone(grid: TerrainGrid): ProtectedZone {
   const N = grid.length;
-  let best: { x: number; y: number; avg: number } | null = null;
 
-  for (let y = 0; y <= N - 3; y++) {
-    for (let x = 0; x <= N - 3; x++) {
-      let sum = 0;
-      let buildable = true;
-      for (let dy = 0; dy < 3 && buildable; dy++) {
-        for (let dx = 0; dx < 3; dx++) {
-          const a = grid[y + dy][x + dx].altitude;
-          if (a < MIN_BUILDABLE_ALTITUDE) {
-            buildable = false;
-            break;
-          }
-          sum += a;
-        }
+  const buildable: { x: number; y: number; alt: number }[] = [];
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const alt = grid[y][x].altitude;
+      if (alt >= MIN_BUILDABLE_ALTITUDE) buildable.push({ x, y, alt });
+    }
+  }
+  buildable.sort((a, b) => a.alt - b.alt);
+
+  const MIN_DIST = 4; // 맨해튼 거리(뭉침 방지)
+  const chosen: TilePos[] = [];
+  const farEnough = (p: { x: number; y: number }, d: number) =>
+    chosen.every((c) => Math.abs(c.x - p.x) + Math.abs(c.y - p.y) >= d);
+
+  for (const band of VILLAGE_BANDS) {
+    const pool = buildable.filter((p) => p.alt >= band.min && p.alt < band.max);
+    let need = band.count;
+    // 간격 조건을 만족하는 후보부터 채우고, 부족하면 간격을 완화한다.
+    for (let dist = MIN_DIST; dist >= 0 && need > 0; dist--) {
+      for (const p of pool) {
+        if (need <= 0) break;
+        if (chosen.some((c) => c.x === p.x && c.y === p.y)) continue;
+        if (!farEnough(p, dist)) continue;
+        chosen.push({ x: p.x, y: p.y });
+        need--;
       }
-      if (!buildable) continue;
-      const avg = sum / 9;
-      if (!best || avg < best.avg) best = { x, y, avg };
     }
   }
 
-  // 이론상 전 지역이 설치 불가 고도(<6m)인 경우는 없지만, 방어적으로 좌상단 폴백.
-  const { x: bx, y: by } = best ?? { x: 0, y: 0 };
-
-  const block: TilePos[] = [];
-  for (let dy = 0; dy < 3; dy++) {
-    for (let dx = 0; dx < 3; dx++) block.push({ x: bx + dx, y: by + dy });
-  }
-  block.sort((a, b) => grid[a.y][a.x].altitude - grid[b.y][b.x].altitude);
-
-  const school = block[0]; // 블록 내 최저점(가장 취약) = 학교
-  const houses = block.slice(1);
-  return { houses, school, all: [...houses, school] };
+  // 저지대 밴드의 첫 후보 = 전체에서 가장 낮은 = 가장 취약 = 학교
+  const school: TilePos = chosen[0] ?? { x: 0, y: 0 };
+  const houses = chosen.filter(
+    (c) => !(c.x === school.x && c.y === school.y)
+  );
+  return { houses, school, all: [school, ...houses] };
 }
 
 /** 마을(보호 대상) 타일들의 최저/최고 고도를 반환한다. */
