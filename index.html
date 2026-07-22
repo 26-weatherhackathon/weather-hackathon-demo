@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>우리 마을 홍수 방재 — 골든타임 프로토타입</title>
+<style>
+  :root{--safe:#43A047;--warn:#FB8C00;--danger:#E53935;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    background:linear-gradient(#dff2ff,#f5fbff);min-height:100vh;
+    display:flex;align-items:center;justify-content:center;padding:20px;}
+  .card{position:relative;width:1040px;height:720px;border-radius:36px;
+    background:linear-gradient(#eaf7ff,#cfeafc);overflow:hidden;text-align:center;
+    box-shadow:0 24px 70px rgba(60,120,180,.3);}
+  .hud{position:absolute;top:0;left:0;right:0;z-index:8;padding:18px 28px;
+    display:flex;align-items:center;gap:10px;}
+  .badge{font-weight:800;font-size:18px;color:#fff;padding:9px 20px;border-radius:999px;
+    background:var(--safe);transition:background .3s;}
+  .rain-amt{margin-left:auto;font-weight:800;color:#2b6fb0;font-size:17px;}
+  .dem-tag{position:absolute;left:28px;top:64px;z-index:6;font-size:12px;color:#5b7a93;font-weight:600;}
+  .speech{position:absolute;left:50%;top:52px;transform:translateX(-50%);z-index:8;
+    background:#fff;color:#2b4a63;font-weight:700;font-size:17px;padding:11px 22px;
+    border-radius:20px;box-shadow:0 6px 16px rgba(40,90,140,.2);white-space:nowrap;max-width:92%;}
+  #lottieSpark{position:absolute;left:50%;top:120px;width:420px;height:420px;
+    transform:translateX(-50%);z-index:7;pointer-events:none;opacity:0;transition:opacity .2s;}
+  canvas{position:absolute;top:74px;left:50%;transform:translateX(-50%);z-index:4;cursor:pointer;}
+  .legend{position:absolute;left:28px;bottom:120px;z-index:6;font-size:13px;color:#33566e;
+    background:rgba(255,255,255,.78);padding:10px 12px;border-radius:14px;text-align:left;line-height:1.85;}
+  .sw{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px;margin-right:6px;}
+  .hint{position:absolute;left:0;right:0;bottom:100px;z-index:6;font-size:14px;color:#3a6a99;font-weight:700;}
+  .controls{position:absolute;left:0;right:0;bottom:0;z-index:8;padding:20px;
+    display:flex;flex-direction:row;justify-content:center;gap:18px;}
+  button{font-family:inherit;font-weight:800;font-size:19px;color:#fff;border:none;
+    padding:17px;border-radius:22px;cursor:pointer;box-shadow:0 6px 0 rgba(0,0,0,.12);transition:transform .08s;}
+  button:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,.12);}
+  .btn-rain{background:#4A90D9;width:340px;}
+  .btn-reset{background:#9aa7b2;width:190px;font-size:16px;}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="hud">
+      <div class="badge" id="badge">안전</div>
+      <div class="rain-amt" id="rainAmt">맑음</div>
+    </div>
+    <div class="dem-tag">지형: 동작구 실제 표고 데이터(Copernicus GLO-30 DEM)</div>
+    <div class="speech" id="speech">기상이를 안전한 곳으로 옮겨요. 칸을 눌러보세요!</div>
+    <canvas id="cv" width="900" height="600"></canvas>
+    <div id="lottieSpark"></div>
+    <div class="legend">
+      <span class="sw" style="background:#8D6E4A"></span>높은 곳<br>
+      <span class="sw" style="background:#A9C97E"></span>언덕<br>
+      <span class="sw" style="background:#6FA96F"></span>마을<br>
+      <span class="sw" style="background:#7Fb4e6"></span>낮은 곳<br>
+      <span class="sw" style="background:#2f6fbf"></span>물에 잠김
+    </div>
+    <div class="hint" id="hint">👆 칸을 누르면 기상이가 그곳으로 이동해요</div>
+    <div class="controls">
+      <button class="btn-rain" id="btnRain">☔ 비가 더 와요</button>
+      <button class="btn-reset" id="btnReset">다시 해보기</button>
+    </div>
+  </div>
+<script src="https://cdn.jsdelivr.net/npm/lottie-web@5.12.2/build/player/lottie.min.js"></script>
+<script>
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+// 실제 DEM 격자: 동작구 Copernicus GLO-30을 10x10로 샘플링(표고 3~108m → 0~5 레벨)
+const elev=[
+ [1,1,1,1,0,0,1,1,1,1],
+ [1,0,1,1,0,0,0,1,1,1],
+ [1,1,1,1,1,1,0,0,0,0],
+ [1,1,1,2,1,2,2,0,0,0],
+ [1,1,1,2,2,3,2,3,1,1],
+ [1,1,1,2,3,4,5,4,2,1],
+ [1,1,1,2,5,4,5,4,2,1],
+ [1,1,1,1,2,2,3,2,1,1],
+ [1,1,2,2,3,2,2,3,1,1],
+ [2,2,3,3,3,5,4,4,2,2],
+];
+const N=elev.length;
+const TW=78, TH=39, ESTEP=23;   // 높이감 강화
+const OX=cv.width/2, OY=140;
+let targetWater=0, waterVisual=0, raining=false;
+let hero={r:3,c:3}, hopFrom={r:3,c:3}, hopT=1;
+let ripples=[], lastKey='';
+
+const imgs={};
+['rain','danger','happy'].forEach(k=>{const i=new Image();i.src='img/'+k+'.png';imgs[k]=i;});
+
+// ---- 마을 오브젝트(받침 없는 에셋), 낮은 곳=마을 / 높은 곳=나무 ----
+const objImgs={};
+['house','school','hospital','tree'].forEach(k=>{const i=new Image();i.src='img/assets/'+k+'.png';objImgs[k]=i;});
+// 마을(집·학교·병원)은 마른 땅(레벨2, 초록 마을)에 시작 → 물이 높이 차오르면 그때 위협받음
+const village={'4,3':'house','7,5':'hospital','8,2':'school','5,6':'tree','6,4':'tree','9,5':'tree'};
+
+// ---- 비 ----
+const drops=[];
+for(let i=0;i<130;i++)drops.push({x:Math.random()*cv.width,y:Math.random()*cv.height,
+  len:9+Math.random()*14, spd:8+Math.random()*7, a:0.18+Math.random()*0.26});
+
+// ---- Lottie 반짝이 ----
+let sparkleAnim=null; const sparkWrap=$('lottieSpark');
+if(window.lottie){
+  sparkleAnim=lottie.loadAnimation({container:sparkWrap,renderer:'svg',loop:false,autoplay:false,path:'lottie/sparkle.json'});
+  sparkleAnim.addEventListener('complete',()=>{sparkWrap.style.opacity='0';});
+}
+function playSparkle(){if(sparkleAnim){sparkWrap.style.opacity='1';sparkleAnim.goToAndPlay(0,true);}}
+
+function heightColor(e){
+  if(e>=4)return'#8D6E4A'; if(e>=3)return'#A9C97E';
+  if(e>=2)return'#6FA96F'; return'#7Fb4e6';
+}
+function iso(r,c,e){return {x:OX+(c-r)*TW/2, y:OY+(c+r)*TH/2 - e*ESTEP};}
+function shade(hex,d){const n=parseInt(hex.slice(1),16);
+  let r=(n>>16)+d,g=((n>>8)&255)+d,b=(n&255)+d;
+  r=Math.max(0,Math.min(255,r));g=Math.max(0,Math.min(255,g));b=Math.max(0,Math.min(255,b));
+  return'rgb('+r+','+g+','+b+')';}
+function diamond(x,y,fill,stroke){ctx.beginPath();
+  ctx.moveTo(x,y-TH/2);ctx.lineTo(x+TW/2,y);ctx.lineTo(x,y+TH/2);ctx.lineTo(x-TW/2,y);
+  ctx.closePath();ctx.fillStyle=fill;ctx.fill();
+  if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke();}}
+function walls(x,y,h,cL,cR){if(h<=0)return;
+  ctx.fillStyle=cL;
+  ctx.beginPath();ctx.moveTo(x-TW/2,y);ctx.lineTo(x,y+TH/2);ctx.lineTo(x,y+TH/2+h);ctx.lineTo(x-TW/2,y+h);ctx.closePath();ctx.fill();
+  ctx.fillStyle=cR;
+  ctx.beginPath();ctx.moveTo(x+TW/2,y);ctx.lineTo(x,y+TH/2);ctx.lineTo(x,y+TH/2+h);ctx.lineTo(x+TW/2,y+h);ctx.closePath();ctx.fill();}
+function sideWalls(x,y,e,base){walls(x,y,e*ESTEP,shade(base,-42),shade(base,-66));}
+function pointInTile(mx,my,r,c){const p=iso(r,c,elev[r][c]);
+  return Math.abs(mx-p.x)/(TW/2)+Math.abs(my-p.y)/(TH/2)<=1;}
+function isFlooded(r,c){return r>=0&&r<N&&c>=0&&c<N&&elev[r][c]<waterVisual-0.02;}
+
+cv.addEventListener('click',ev=>{
+  const rect=cv.getBoundingClientRect();
+  const mx=(ev.clientX-rect.left)*(cv.width/rect.width);
+  const my=(ev.clientY-rect.top)*(cv.height/rect.height);
+  for(let s=2*(N-1);s>=0;s--)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
+    if(pointInTile(mx,my,r,c)){moveHero(r,c);return;}}
+});
+let blockMsg='', blockUntil=0;
+function moveHero(r,c){if(r===hero.r&&c===hero.c)return;
+  if(village[r+','+c]){blockMsg='거기엔 건물·나무가 있어 갈 수 없어요!';blockUntil=performance.now()+1500;lastKey='';return;}
+  hopFrom={r:hero.r,c:hero.c}; hero={r,c}; hopT=0;}
+function splash(r,c){const p=iso(r,c,waterVisual);
+  for(let i=0;i<3;i++)ripples.push({x:p.x,y:p.y,t:-i*0.15});}
+
+function waterColor(depth){
+  const tt=Math.min(1,depth/3.5);
+  const r=Math.round(150+(28-150)*tt), g=Math.round(200+(86-200)*tt), b=Math.round(235+(150-235)*tt);
+  return 'rgba('+r+','+g+','+b+','+(0.30+0.20*tt).toFixed(2)+')';
+}
+function surfH(r,c,t){return waterVisual + Math.sin((r+c)*0.85+t/280)*0.05 + Math.sin((r-c)*0.6 - t/360)*0.03;}
+
+function draw(t){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  for(let s=0;s<=2*(N-1);s++)for(let r=0;r<N;r++){const c=s-r;if(c<0||c>=N)continue;
+    const e=elev[r][c],p=iso(r,c,e);
+    sideWalls(p.x,p.y,e,heightColor(e));
+    diamond(p.x,p.y,heightColor(e),'rgba(255,255,255,.26)');
+    const ob=village[r+','+c];
+    if(ob&&objImgs[ob]&&objImgs[ob].complete){const im=objImgs[ob];
+      const tw=TW*0.92, th2=tw*(im.naturalHeight/im.naturalWidth);
+      ctx.drawImage(im,p.x-tw/2,p.y+TH*0.32-th2,tw,th2);}
+    if(isFlooded(r,c)){const wp=iso(r,c,surfH(r,c,t)); const dh=(waterVisual-e)*ESTEP;
+      walls(wp.x,wp.y,dh,'rgba(52,112,188,0.62)','rgba(30,80,150,0.72)');   // 물 옆면(깊을수록 진함)
+      diamond(wp.x,wp.y,waterColor(waterVisual-e),'rgba(170,210,240,0.22)');
+      // 물가 거품: 앞쪽(마른 이웃과 닿는) 가장자리만 — 같은 패스라 앞 타일이 자연히 가림
+      ctx.lineCap='round';ctx.lineWidth=2.5;
+      ctx.strokeStyle='rgba(255,255,255,'+(0.28+0.20*Math.sin(t/220+wp.x*0.05)).toFixed(2)+')';
+      if(!isFlooded(r,c+1)){ctx.beginPath();ctx.moveTo(wp.x+TW/2,wp.y);ctx.lineTo(wp.x,wp.y+TH/2);ctx.stroke();}
+      if(!isFlooded(r+1,c)){ctx.beginPath();ctx.moveTo(wp.x,wp.y+TH/2);ctx.lineTo(wp.x-TW/2,wp.y);ctx.stroke();}}}
+  ripples.forEach(rp=>{if(rp.t<0)return;ctx.strokeStyle='rgba(255,255,255,'+(1-rp.t)*0.7+')';ctx.lineWidth=2;
+    ctx.beginPath();ctx.ellipse(rp.x,rp.y,rp.t*30,rp.t*15,0,0,7);ctx.stroke();});
+  // 기상이
+  const hp=iso(hero.r,hero.c,Math.max(elev[hero.r][hero.c],waterVisual));
+  let hx=hp.x,hy=hp.y;
+  if(hopT<1){const fp=iso(hopFrom.r,hopFrom.c,Math.max(elev[hopFrom.r][hopFrom.c],waterVisual));
+    hx=fp.x+(hp.x-fp.x)*hopT; hy=fp.y+(hp.y-fp.y)*hopT - Math.sin(hopT*Math.PI)*40;}
+  const bob=Math.sin(t/300)*4;
+  const flooded=elev[hero.r][hero.c]<waterVisual-0.02;
+  const heroE=elev[hero.r][hero.c];
+  const img=flooded?imgs.danger:(heroE>=4?imgs.happy:imgs.rain);
+  if(img&&img.complete){
+    const th=94, ratio=(img.naturalWidth&&img.naturalHeight)?img.naturalWidth/img.naturalHeight:1;
+    ctx.drawImage(img, hx-(th*ratio)/2, hy-th+12+(hopT<1?0:bob), th*ratio, th);
+  }
+  if(raining){ctx.strokeStyle='rgba(150,190,225,.55)';
+    drops.forEach(d=>{ctx.globalAlpha=d.a;ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.moveTo(d.x,d.y);ctx.lineTo(d.x-3,d.y+d.len);ctx.stroke();});
+    ctx.globalAlpha=1;}
+}
+function loop(t){
+  if(waterVisual<targetWater)waterVisual=Math.min(targetWater,waterVisual+0.012);
+  ripples.forEach(r=>r.t+=0.03); ripples=ripples.filter(r=>r.t<1);
+  if(raining)drops.forEach(d=>{d.y+=d.spd;d.x-=1.1;if(d.y>cv.height){d.y=-d.len;d.x=Math.random()*cv.width;}});
+  if(hopT<1){hopT=Math.min(1,hopT+0.06);
+    if(hopT>=1){const fl=elev[hero.r][hero.c]<waterVisual-0.02;
+      if(fl)splash(hero.r,hero.c);
+      else if(elev[hero.r][hero.c]>=4&&waterVisual>=1.5)playSparkle();}}
+  updateStatus();
+  draw(t);
+  requestAnimationFrame(loop);
+}
+function updateStatus(){
+  if(performance.now()<blockUntil){if(lastKey!=='block'){lastKey='block';$('speech').textContent=blockMsg;}return;}
+  const heroE=elev[hero.r][hero.c];
+  const flooded=heroE<waterVisual-0.02;
+  let b,col,msg;
+  if(flooded){b='위험';col='#E53935';msg='물에 잠겼어요! 더 높은 곳으로 옮겨요!';}
+  else if(waterVisual>=heroE-0.55&&waterVisual>0){b='경고';col='#FB8C00';msg='물이 코앞이에요. 조심!';}
+  else if(heroE>=4){b='안전';col='#43A047';msg='높은 곳이라 안전해요!';}
+  else{b='안전';col='#43A047';msg=waterVisual>0?'아직은 괜찮아요. 더 높은 곳은?':'기상이를 안전한 곳으로 옮겨요. 칸을 눌러보세요!';}
+  const key=b+msg;
+  if(key!==lastKey){lastKey=key;$('badge').textContent=b;$('badge').style.background=col;$('speech').textContent=msg;}
+}
+$('btnRain').onclick=()=>{raining=true;targetWater=Math.min(5,targetWater+1);
+  $('rainAmt').textContent='시간당 빗물 '+Math.round(targetWater*18)+'mm';};
+$('btnReset').onclick=()=>{targetWater=0;waterVisual=0;raining=false;ripples=[];
+  hero={r:3,c:3};hopFrom={r:3,c:3};hopT=1;$('rainAmt').textContent='맑음';lastKey='';sparkWrap.style.opacity='0';};
+
+let ready=setInterval(()=>{if(imgs.rain.complete){clearInterval(ready);requestAnimationFrame(loop);}},60);
+</script>
+</body>
+</html>
